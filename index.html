@@ -65,6 +65,7 @@
   </div>
 
   <script>
+    // Список камер
     const CAMERAS = [
       { id: 1, name: "Перекрёсток Емлина-Ленина", url: "https://video.interra.ru/glaz.naroda.38-e60a533a34/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAHz8AV5bAgwb_bq4Q9BexUA3ze2E" },
       { id: 2, name: "Перекрёсток Ленина-Космонавтов", url: "https://video.interra.ru/glaz.naroda.69-88107b23ac/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAABMSk4SEGVZtDQ81gwVqeUBRBIXE" },
@@ -115,6 +116,7 @@
       { id: 47, name: "Перекрёсток Коммунистическая-Ленина", url: "https://video2.interra.ru/glaz.naroda.504-d8b2dcde14/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAOnSd-VAJBBftYpJxGc2KU8-Mcx2" }
     ];
 
+    // Элементы DOM
     const feed = document.getElementById('feed');
     const reportBtn = document.getElementById('reportBtn');
     const overlay = document.getElementById('overlay');
@@ -126,11 +128,13 @@
     const confirmYes = document.getElementById('confirmYes');
     const confirmNo = document.getElementById('confirmNo');
     const tg = Telegram.WebApp;
-    tg.expand();
 
     let ACTIVE_INDEX = null;
 
-    // === Создаём ленту ===
+    // Инициализация
+    tg.expand();
+
+    // === Создаём ленту камер ===
     CAMERAS.forEach((cam, index) => {
       const item = document.createElement('div');
       item.className = 'camera-item';
@@ -244,30 +248,36 @@
       confirmModal.style.display = 'block';
     });
 
+    // === Отправка данных в Telegram напрямую ===
     confirmYes.addEventListener('click', () => {
       const type = eventType.value;
       const cameraId = cameraSelect.value;
       const camera = CAMERAS.find(c => c.id == cameraId);
 
-      // Отправляем на API
-      fetch("https://cameripvk-api.onrender.com/report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const text = `
+🚨 <b>Событие:</b> ${type}
+📹 <b>Камера:</b> ${camera ? camera.name : 'неизвестна'}
+👤 <b>Пользователь:</b> ${Telegram.WebApp.initDataUnsafe?.user?.first_name} ${Telegram.WebApp.initDataUnsafe?.user?.last_name}
+🆔 <b>ID:</b> ${Telegram.WebApp.initDataUnsafe?.user?.id}
+🕒 <b>Время:</b> ${new Date().toLocaleString('ru-RU')}
+      `.trim();
+
+      // Отправляем напрямую в группу через Bot API
+      fetch('https://api.telegram.org/bot8191852280:AAFcOI5tVlJlk4xxnzxAgIUBmW4DW5KElro/sendMessage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: type,
-          camera: camera ? camera.name : 'неизвестна',
-          timestamp: new Date().toISOString(),
-          user: {
-            fullName: tg.initDataUnsafe?.user?.first_name + " " + tg.initDataUnsafe?.user?.last_name,
-            id: tg.initDataUnsafe?.user?.id
-          }
+          chat_id: -1003033000994,
+          text: text,
+          parse_mode: 'HTML'
         })
       })
       .then(() => {
-        tg.sendData(JSON.stringify({ type: "debug", action: "sent_to_api" }));
+        alert('✅ Отправлено в группу!');
       })
       .catch(err => {
-        console.error("Ошибка отправки:", err);
+        console.error('Ошибка отправки:', err);
+        alert('❌ Ошибка отправки. Попробуйте снова.');
       });
 
       confirmModal.style.display = 'none';
