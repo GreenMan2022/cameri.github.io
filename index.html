@@ -249,11 +249,26 @@
       const cameraId = cameraSelect.value;
       const camera = CAMERAS.find(c => c.id == cameraId);
 
-      tg.sendData(JSON.stringify({
-        type: type,
-        camera: camera ? camera.name : 'неизвестна',
-        timestamp: new Date().toISOString()
-      }));
+      // Отправляем на API
+      fetch("https://cameripvk-api.onrender.com/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: type,
+          camera: camera ? camera.name : 'неизвестна',
+          timestamp: new Date().toISOString(),
+          user: {
+            fullName: tg.initDataUnsafe?.user?.first_name + " " + tg.initDataUnsafe?.user?.last_name,
+            id: tg.initDataUnsafe?.user?.id
+          }
+        })
+      })
+      .then(() => {
+        tg.sendData(JSON.stringify({ type: "debug", action: "sent_to_api" }));
+      })
+      .catch(err => {
+        console.error("Ошибка отправки:", err);
+      });
 
       confirmModal.style.display = 'none';
       reportModal.classList.remove('active');
