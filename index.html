@@ -97,7 +97,7 @@
     const ctx = canvas.getContext('2d');
     const tg = window.Telegram?.WebApp;
 
-    // === Определяем, открыт ли в Telegram ===
+    // === Проверка: открыт ли в Telegram? ===
     if (tg && tg.initData) {
       user = tg.initDataUnsafe?.user;
       isTelegramUser = true;
@@ -320,6 +320,9 @@
         return;
       }
 
+      // Генерируем ссылку на онлайн-просмотр
+      const deepLink = `${window.location.origin}?camera=${camera.id}`;
+
       // Настройка canvas
       const maxWidth = 800;
       let width = video.videoWidth || 800;
@@ -338,10 +341,11 @@
       canvas.toBlob(async (blob) => {
         const text = `
 🚨 <b>Событие:</b> ${type}
-📹 <b>Камера:</b> ${camera ? camera.name : 'неизвестна'}
+📹 <b>Камера:</b> ${camera.name}
 👤 <b>Пользователь:</b> ${user?.first_name} ${user?.last_name}
 🆔 <b>ID:</b> ${user?.id}
 🕒 <b>Время:</b> ${new Date().toLocaleString('ru-RU')}
+🔗 <a href="${deepLink}">▶️ Смотреть онлайн</a>
         `.trim();
 
         // Создаём FormData
@@ -376,10 +380,22 @@
       confirmModal.style.display = 'none';
     });
 
-    // === Загрузка при старте ===
+    // === Автозапуск камеры по ?camera=id ===
     window.addEventListener('load', async () => {
       await loadBlacklist();
       await loadCameras();
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const cameraId = urlParams.get('camera');
+      if (cameraId && ACTIVE_INDEX === null) {
+        const index = CAMERAS.findIndex(c => c.id == cameraId);
+        if (index !== -1) {
+          setTimeout(() => {
+            const playBtn = document.querySelector(`.camera-item[data-index="${index}"] .play-btn`);
+            if (playBtn) playBtn.click();
+          }, 1000);
+        }
+      }
     });
   </script>
 </body>
