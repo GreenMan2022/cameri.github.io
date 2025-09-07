@@ -64,9 +64,8 @@
     </div>
   </div>
 
-  <canvas id="screenshotCanvas" style="display: none;"></canvas>
-
   <script>
+    // Список камер
     const CAMERAS = [
       { id: 1, name: "Перекрёсток Емлина-Ленина", url: "https://video.interra.ru/glaz.naroda.38-e60a533a34/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAHz8AV5bAgwb_bq4Q9BexUA3ze2E" },
       { id: 2, name: "Перекрёсток Ленина-Космонавтов", url: "https://video.interra.ru/glaz.naroda.69-88107b23ac/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAABMSk4SEGVZtDQ81gwVqeUBRBIXE" },
@@ -127,8 +126,6 @@
     const confirmModal = document.getElementById('confirmModal');
     const confirmYes = document.getElementById('confirmYes');
     const confirmNo = document.getElementById('confirmNo');
-    const canvas = document.getElementById('screenshotCanvas');
-    const ctx = canvas.getContext('2d');
     const tg = Telegram.WebApp;
     tg.expand();
 
@@ -248,62 +245,53 @@
       confirmModal.style.display = 'block';
     });
 
-    // === Отправка с кадром ===
+    // === Отправка с кадром через внешний сервис ===
     confirmYes.addEventListener('click', () => {
       const type = eventType.value;
       const cameraId = cameraSelect.value;
       const camera = CAMERAS.find(c => c.id == cameraId);
-      const video = document.getElementById(`camera-${ACTIVE_INDEX}`);
+      const user = Telegram.WebApp.initDataUnsafe?.user;
 
-      if (!video || !video.readyState) {
-        alert('Видео не загружено');
+      if (!camera) {
+        alert('Камера не выбрана');
         return;
       }
 
-      // Устанавливаем размер canvas
-      const maxWidth = 800;
-      let width = video.videoWidth;
-      let height = video.videoHeight;
-
-      if (width > maxWidth) {
-        height = Math.round(height * maxWidth / width);
-        width = maxWidth;
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-      ctx.drawImage(video, 0, 0, width, height);
-
-      // Конвертируем в base64
-      const imageData = canvas.toDataURL('image/jpeg', 0.8);
-
       // Текст события
-      const user = tg.initDataUnsafe?.user;
       const text = `
 🚨 <b>Событие:</b> ${type}
-📹 <b>Камера:</b> ${camera ? camera.name : 'неизвестна'}
+📹 <b>Камера:</b> ${camera.name}
 👤 <b>Пользователь:</b> ${user?.first_name} ${user?.last_name}
 🆔 <b>ID:</b> ${user?.id}
 🕒 <b>Время:</b> ${new Date().toLocaleString('ru-RU')}
       `.trim();
 
-      // Отправляем фото + текст
+      // Замените `abc123` на ваш API-ключ с https://www.screenshotmachine.com
+      const screenshotUrl = `https://api.screenshotmachine.com?key=abc123&url=${encodeURIComponent(camera.url)}&dimension=800x600&format=jpg&delay=2000`;
+
+      // Отправляем фото в Telegram
       fetch('https://api.telegram.org/bot8191852280:AAFcOI5tVlJlk4xxnzxAgIUBmW4DW5KElro/sendPhoto', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: -1003033000994,
-          photo: imageData,
+          photo: screenshotUrl,
           caption: text,
           parse_mode: 'HTML'
         })
       })
-      .then(() => {
-        alert('✅ Отправлено в группу!');
+      .then(response => response.json())
+      .then(result => {
+        if (result.ok) {
+          alert('✅ Отправлено в группу!');
+        } else {
+          console.error('Ошибка Telegram:', result);
+          alert(`❌ Ошибка: ${result.description}`);
+        }
       })
       .catch(err => {
         console.error('Ошибка отправки:', err);
-        alert('❌ Ошибка отправки. Попробуйте снова.');
+        alert('❌ Ошибка сети');
       });
 
       confirmModal.style.display = 'none';
