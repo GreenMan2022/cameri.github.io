@@ -82,7 +82,7 @@
     const tg = Telegram.WebApp;
     tg.expand();
 
-    // === Загрузка камер ===
+    // === Загрузка камер из JSON ===
     async function loadCameras() {
       try {
         const response = await fetch(CAMERAS_FILE);
@@ -92,11 +92,11 @@
         createFeed();
       } catch (err) {
         console.error('Ошибка загрузки камер:', err);
-        alert('Не удалось загрузить камеры');
+        alert('Не удалось загрузить список камер');
       }
     }
 
-    // === Создаём ленту ===
+    // === Создание ленты ===
     function createFeed() {
       feed.innerHTML = '';
       CAMERAS.forEach((cam, index) => {
@@ -234,33 +234,38 @@
 🕒 <b>Время:</b> ${new Date().toLocaleString('ru-RU')}
       `.trim();
 
-      // URL вашего сервиса скриншотов
-      const screenshotUrl = `https://cameripvk-screenshot.onrender.com/screenshot?url=${encodeURIComponent(camera.url)}`;
-
-      // Отправляем фото в Telegram
-      fetch('https://api.telegram.org/bot8191852280:AAFcOI5tVlJlk4xxnzxAgIUBmW4DW5KElro/sendPhoto', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: -1003033000994,
-          photo: screenshotUrl,
-          caption: text,
-          parse_mode: 'HTML'
+      // Шаг 1: Получаем изображение с вашего сервиса
+      fetch(`https://cameripvk-screenshot.onrender.com/screenshot?url=${encodeURIComponent(camera.url)}`)
+        .then(response => {
+          if (!response.ok) throw new Error('Не удалось получить скриншот');
+          return response.blob();
         })
-      })
-      .then(response => response.json())
-      .then(result => {
-        if (result.ok) {
-          alert('✅ Отправлено в группу!');
-        } else {
-          console.error('Ошибка Telegram:', result);
-          alert(`❌ Ошибка: ${result.description}`);
-        }
-      })
-      .catch(err => {
-        console.error('Ошибка отправки:', err);
-        alert('❌ Ошибка сети');
-      });
+        .then(blob => {
+          // Шаг 2: Отправляем фото в Telegram как файл
+          const formData = new FormData();
+          formData.append('chat_id', '-1003033000994');
+          formData.append('caption', text);
+          formData.append('parse_mode', 'HTML');
+          formData.append('photo', blob, 'screenshot.jpg');
+
+          return fetch('https://api.telegram.org/bot8191852280:AAFcOI5tVlJlk4xxnzxAgIUBmW4DW5KElro/sendPhoto', {
+            method: 'POST',
+            body: formData
+          });
+        })
+        .then(response => response.json())
+        .then(result => {
+          if (result.ok) {
+            alert('✅ Отправлено в группу!');
+          } else {
+            console.error('Ошибка Telegram:', result);
+            alert(`❌ Ошибка: ${result.description}`);
+          }
+        })
+        .catch(err => {
+          console.error('Ошибка отправки:', err);
+          alert('❌ Ошибка сети');
+        });
 
       confirmModal.style.display = 'none';
       reportModal.classList.remove('active');
