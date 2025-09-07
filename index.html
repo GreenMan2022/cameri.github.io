@@ -79,6 +79,7 @@
     const BLACKLIST = [];
     let ACTIVE_INDEX = null;
     let user = null;
+    let isTelegramUser = false;
 
     // Элементы DOM
     const feed = document.getElementById('feed');
@@ -94,13 +95,16 @@
     const confirmNo = document.getElementById('confirmNo');
     const canvas = document.getElementById('screenshotCanvas');
     const ctx = canvas.getContext('2d');
-    const tg = Telegram.WebApp;
-    tg.expand();
+    const tg = window.Telegram?.WebApp;
 
-    // === Проверка: открыт ли WebApp через Telegram? ===
-    function isLaunchedInTelegram() {
-      return tg && tg.initData && tg.initData !== '';
+    // === Определяем, открыт ли в Telegram ===
+    if (tg && tg.initData) {
+      user = tg.initDataUnsafe?.user;
+      isTelegramUser = true;
     }
+
+    // Расширяем Telegram WebApp
+    if (tg) tg.expand();
 
     // === Загрузка камер ===
     async function loadCameras() {
@@ -125,8 +129,7 @@
         data.forEach(id => BLACKLIST.push(Number(id)));
         console.log('Чёрный список загружен:', BLACKLIST);
       } catch (err) {
-        console.error('Ошибка загрузки чёрного списка:', err);
-        // Можно игнорировать — чёрный список не обязателен
+        console.warn('Чёрный список не загружен:', err);
       }
     }
 
@@ -201,7 +204,11 @@
           debug: false,
           maxMaxBufferLength: 10,
           maxBufferLength: 10,
-          liveSyncDuration: 3
+          liveSyncDuration: 3,
+          xhrSetup: function(xhr, url) {
+            xhr.setRequestHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+            xhr.setRequestHeader('Referer', 'https://glaz.naroda.ru/');
+          }
         });
 
         hls.on(Hls.Events.ERROR, function (event, data) {
@@ -209,13 +216,10 @@
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                alert('Ошибка сети: проверьте интернет');
+                console.warn('Ошибка сети:', data);
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
                 hls.recoverMediaError();
-                break;
-              default:
-                alert('Ошибка воспроизведения');
                 break;
             }
           }
@@ -243,31 +247,8 @@
       }
     }
 
-    // === Проверка пользователя ===
-    function checkUser() {
-      if (!isLaunchedInTelegram()) {
-        alert('❌ Страница доступна только через Telegram');
-        return false;
-      }
-
-      user = tg.initDataUnsafe?.user;
-      if (!user || !user.id) {
-        alert('❌ Не удалось получить ID пользователя');
-        return false;
-      }
-
-      if (BLACKLIST.includes(user.id)) {
-        alert('❌ Вам запрещено отправлять сообщения');
-        return false;
-      }
-
-      return true;
-    }
-
     // === Модальное окно ===
     reportBtn.addEventListener('click', () => {
-      if (!checkUser()) return;
-
       cameraSelect.innerHTML = '';
       modalError.style.display = 'none';
       if (ACTIVE_INDEX !== null) {
@@ -305,8 +286,30 @@
       confirmModal.style.display = 'block';
     });
 
-    // === Отправка с кадром (через canvas) ===
+    // === Проверка перед отправкой ===
+    function canSend() {
+      if (!isTelegramUser) {
+        alert('❌ Отправка доступна только через Telegram Mini App');
+        return false;
+      }
+      if (!user || !user.id) {
+        alert('❌ Не удалось получить ID пользователя');
+        return false;
+      }
+      if (BLACKLIST.includes(user.id)) {
+        alert('❌ Вам запрещено отправлять сообщения');
+        return false;
+      }
+      return true;
+    }
+
+    // === Отправка с кадром (только после проверки) ===
     confirmYes.addEventListener('click', () => {
+      if (!canSend()) {
+        confirmModal.style.display = 'none';
+        return;
+      }
+
       const type = eventType.value;
       const cameraId = cameraSelect.value;
       const camera = CAMERAS.find(c => c.id == cameraId);
