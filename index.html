@@ -65,10 +65,12 @@
   </div>
 
   <script>
+    // Файл с камерами
     const CAMERAS_FILE = 'cameras.json';
     const CAMERAS = [];
     let ACTIVE_INDEX = null;
 
+    // Элементы DOM
     const feed = document.getElementById('feed');
     const reportBtn = document.getElementById('reportBtn');
     const overlay = document.getElementById('overlay');
@@ -82,17 +84,17 @@
     const tg = Telegram.WebApp;
     tg.expand();
 
-    // === Загрузка камер из JSON ===
+    // === Загрузка камер ===
     async function loadCameras() {
       try {
         const response = await fetch(CAMERAS_FILE);
+        if (!response.ok) throw new Error('Не удалось загрузить cameras.json');
         const data = await response.json();
-        CAMERAS.length = 0;
         data.forEach(cam => CAMERAS.push(cam));
         createFeed();
       } catch (err) {
         console.error('Ошибка загрузки камер:', err);
-        alert('Не удалось загрузить список камер');
+        alert('Не удалось загрузить камеры');
       }
     }
 
@@ -225,7 +227,6 @@
         return;
       }
 
-      // Текст события
       const text = `
 🚨 <b>Событие:</b> ${type}
 📹 <b>Камера:</b> ${camera.name}
@@ -234,10 +235,12 @@
 🕒 <b>Время:</b> ${new Date().toLocaleString('ru-RU')}
       `.trim();
 
-      // Шаг 1: Получаем изображение с вашего сервиса
+      // Шаг 1: Получаем скриншот с вашего сервиса
       fetch(`https://cameripvk-screenshot.onrender.com/screenshot?url=${encodeURIComponent(camera.url)}`)
         .then(response => {
-          if (!response.ok) throw new Error('Не удалось получить скриншот');
+          if (!response.ok) {
+            throw new Error(`Сервер вернул ${response.status}: ${response.statusText}`);
+          }
           return response.blob();
         })
         .then(blob => {
@@ -264,7 +267,7 @@
         })
         .catch(err => {
           console.error('Ошибка отправки:', err);
-          alert('❌ Ошибка сети');
+          alert(`❌ Ошибка: ${err.message}`);
         });
 
       confirmModal.style.display = 'none';
