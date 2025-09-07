@@ -380,20 +380,23 @@
       confirmModal.style.display = 'none';
     });
 
-    // === Автозапуск камеры по ?camera=id ===
+    // === Автозапуск камеры ПОСЛЕ загрузки камер ===
     window.addEventListener('load', async () => {
       await loadBlacklist();
       await loadCameras();
-
+    
+      // === Автозапуск камеры по ?camera=id ===
       const urlParams = new URLSearchParams(window.location.search);
       const cameraId = urlParams.get('camera');
       if (cameraId && ACTIVE_INDEX === null) {
         const index = CAMERAS.findIndex(c => c.id == cameraId);
         if (index !== -1) {
-          setTimeout(() => {
-            const playBtn = document.querySelector(`.camera-item[data-index="${index}"] .play-btn`);
-            if (playBtn) playBtn.click();
-          }, 1000);
+          // Немедленно ищем кнопку — она уже должна быть в DOM
+          const playBtn = document.querySelector(`.camera-item[data-index="${index}"] .play-btn`);
+          if (playBtn) {
+            // Имитируем клик
+            playBtn.click();
+          }
         }
       }
     });
