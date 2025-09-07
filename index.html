@@ -57,15 +57,16 @@
   </div>
 
   <div class="confirm-modal" id="confirmModal" style="display: none;">
-    <p>Отправить сообщение?</p>
+    <p>Отправить сообщение с кадром?</p>
     <div class="confirm-buttons">
       <button class="btn-yes" id="confirmYes">Да</button>
       <button class="btn-no" id="confirmNo">Нет</button>
     </div>
   </div>
 
+  <canvas id="screenshotCanvas" style="display: none;"></canvas>
+
   <script>
-    // Список камер
     const CAMERAS = [
       { id: 1, name: "Перекрёсток Емлина-Ленина", url: "https://video.interra.ru/glaz.naroda.38-e60a533a34/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAHz8AV5bAgwb_bq4Q9BexUA3ze2E" },
       { id: 2, name: "Перекрёсток Ленина-Космонавтов", url: "https://video.interra.ru/glaz.naroda.69-88107b23ac/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAABMSk4SEGVZtDQ81gwVqeUBRBIXE" },
@@ -116,7 +117,6 @@
       { id: 47, name: "Перекрёсток Коммунистическая-Ленина", url: "https://video2.interra.ru/glaz.naroda.504-d8b2dcde14/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAOnSd-VAJBBftYpJxGc2KU8-Mcx2" }
     ];
 
-    // Элементы DOM
     const feed = document.getElementById('feed');
     const reportBtn = document.getElementById('reportBtn');
     const overlay = document.getElementById('overlay');
@@ -127,14 +127,14 @@
     const confirmModal = document.getElementById('confirmModal');
     const confirmYes = document.getElementById('confirmYes');
     const confirmNo = document.getElementById('confirmNo');
+    const canvas = document.getElementById('screenshotCanvas');
+    const ctx = canvas.getContext('2d');
     const tg = Telegram.WebApp;
+    tg.expand();
 
     let ACTIVE_INDEX = null;
 
-    // Инициализация
-    tg.expand();
-
-    // === Создаём ленту камер ===
+    // === Создаём ленту ===
     CAMERAS.forEach((cam, index) => {
       const item = document.createElement('div');
       item.className = 'camera-item';
@@ -248,27 +248,53 @@
       confirmModal.style.display = 'block';
     });
 
-    // === Отправка данных в Telegram напрямую ===
+    // === Отправка с кадром ===
     confirmYes.addEventListener('click', () => {
       const type = eventType.value;
       const cameraId = cameraSelect.value;
       const camera = CAMERAS.find(c => c.id == cameraId);
+      const video = document.getElementById(`camera-${ACTIVE_INDEX}`);
 
+      if (!video || !video.readyState) {
+        alert('Видео не загружено');
+        return;
+      }
+
+      // Устанавливаем размер canvas
+      const maxWidth = 800;
+      let width = video.videoWidth;
+      let height = video.videoHeight;
+
+      if (width > maxWidth) {
+        height = Math.round(height * maxWidth / width);
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(video, 0, 0, width, height);
+
+      // Конвертируем в base64
+      const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+      // Текст события
+      const user = tg.initDataUnsafe?.user;
       const text = `
 🚨 <b>Событие:</b> ${type}
 📹 <b>Камера:</b> ${camera ? camera.name : 'неизвестна'}
-👤 <b>Пользователь:</b> ${Telegram.WebApp.initDataUnsafe?.user?.first_name} ${Telegram.WebApp.initDataUnsafe?.user?.last_name}
-🆔 <b>ID:</b> ${Telegram.WebApp.initDataUnsafe?.user?.id}
+👤 <b>Пользователь:</b> ${user?.first_name} ${user?.last_name}
+🆔 <b>ID:</b> ${user?.id}
 🕒 <b>Время:</b> ${new Date().toLocaleString('ru-RU')}
       `.trim();
 
-      // Отправляем напрямую в группу через Bot API
-      fetch('https://api.telegram.org/bot8191852280:AAFcOI5tVlJlk4xxnzxAgIUBmW4DW5KElro/sendMessage', {
+      // Отправляем фото + текст
+      fetch('https://api.telegram.org/bot8191852280:AAFcOI5tVlJlk4xxnzxAgIUBmW4DW5KElro/sendPhoto', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: -1003033000994,
-          text: text,
+          photo: imageData,
+          caption: text,
           parse_mode: 'HTML'
         })
       })
