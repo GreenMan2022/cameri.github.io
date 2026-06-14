@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="CamChat">
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%234c6ef5'/%3E%3Ccircle cx='50' cy='40' r='18' fill='white'/%3E%3C/svg%3E">
     <title>Pervouralsk CamChat | 47 камер видеонаблюдения</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -22,7 +22,7 @@
         .player-section { background: #000; position: relative; width: 100%; aspect-ratio: 16/9; background-color: #1a1a2e; }
         video { width: 100%; height: 100%; object-fit: contain; background: #000; }
         .player-status { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,0.65); backdrop-filter: blur(6px); padding: 4px 12px; border-radius: 24px; font-size: 12px; z-index: 2; }
-        .fullscreen-btn { position: absolute; bottom: 12px; right: 12px; background: rgba(0,0,0,0.7); border: none; width: 40px; height: 40px; border-radius: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; color: white; font-size: 20px; }
+        .fullscreen-btn { position: absolute; bottom: 12px; right: 12px; background: rgba(0,0,0,0.7); border: none; width: 40px; height: 40px; border-radius: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; color: white; font-size: 20px; background: rgba(0,0,0,0.6); }
         
         /* Actions */
         .action-bar { display: flex; margin: 12px 16px 8px; gap: 12px; }
@@ -73,6 +73,26 @@
         .offline-badge { background: #ffaa44; color: #1a1a2e; padding: 2px 8px; border-radius: 12px; font-size: 10px; margin-left: 8px; }
         .cam-count { background: #4c6ef5; padding: 2px 8px; border-radius: 20px; font-size: 11px; }
         
+        /* Fullscreen styles */
+        .player-section:fullscreen {
+            width: 100vw;
+            height: 100vh;
+            aspect-ratio: unset;
+            background: black;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .player-section:fullscreen video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .player-section:-webkit-full-screen {
+            width: 100vw;
+            height: 100vh;
+        }
+        
         @media (max-width: 480px) { .messages-area { min-height: 240px; } }
     </style>
 </head>
@@ -81,7 +101,7 @@
     <div class="player-section" id="playerSection">
         <video id="webcamVideo" playsinline autoplay muted></video>
         <div class="player-status" id="playerStatus">⏳ Загрузка...</div>
-        <button class="fullscreen-btn" id="fullscreenBtn">⛶</button>
+        <button class="fullscreen-btn" id="fullscreenBtn" title="Полный экран">⛶</button>
     </div>
     <div class="action-bar">
         <button class="event-alert-btn" id="eventAlertBtn">⚠️ Оповестить всех</button>
@@ -96,13 +116,19 @@
     </div>
     <div class="chat-container">
         <div class="chat-header">
-            <span>💬 Общий чат (все видят)</span>
+            <span>💬 Общий чат <span id="connStatus">🟢 онлайн</span></span>
             <div style="display: flex; gap: 8px;">
                 <div class="install-prompt" id="installBtn" style="display:none;">📲 Установить</div>
                 <div class="login-prompt" id="loginPromptBtn">🔑 Войти</div>
             </div>
         </div>
-        <div class="messages-area" id="messagesArea"></div>
+        <div class="messages-area" id="messagesArea">
+            <div class="message message-system">
+                <div class="message-author">📡 Система</div>
+                <div class="message-text">Подключение к чату...</div>
+                <div class="message-time">--:--:--</div>
+            </div>
+        </div>
         <div class="input-area">
             <input type="text" class="chat-input" id="chatInput" placeholder="Войдите, чтобы писать..." disabled>
             <button class="send-btn" id="sendBtn" disabled>➤</button>
@@ -115,8 +141,8 @@
     <div class="auth-card">
         <h2 id="modalTitle">🔐 Вход</h2>
         <p id="modalDesc">Введите имя и пароль</p>
-        <input type="text" class="auth-input" id="authName" placeholder="Имя пользователя">
-        <input type="password" class="auth-input" id="authPassword" placeholder="Пароль">
+        <input type="text" class="auth-input" id="authName" placeholder="Имя пользователя" autocomplete="off">
+        <input type="password" class="auth-input" id="authPassword" placeholder="Пароль" autocomplete="off">
         <button class="auth-btn" id="authSubmitBtn">Войти</button>
         <div class="demo-account" id="demoLoginBtn">🎮 Демо-аккаунт: demo / demo123</div>
         <div class="switch-mode" id="switchMode">Нет аккаунта? <span id="switchToReg">Зарегистрироваться</span></div>
@@ -137,12 +163,24 @@
     };
     
     // Инициализация Firebase
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    const messagesRef = database.ref('chat_messages');
-    const usersRef = database.ref('users');
-    const bannedUsersRef = database.ref('banned_alerts');
-    const reportsRef = database.ref('spam_reports');
+    let database, messagesRef, usersRef, bannedUsersRef, reportsRef;
+    let firebaseReady = false;
+    
+    try {
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
+        messagesRef = database.ref('chat_messages');
+        usersRef = database.ref('users');
+        bannedUsersRef = database.ref('banned_alerts');
+        reportsRef = database.ref('spam_reports');
+        firebaseReady = true;
+        console.log('✅ Firebase инициализирован');
+        document.getElementById('connStatus').innerHTML = '🟢 онлайн';
+    } catch (e) {
+        console.error('❌ Firebase ошибка:', e);
+        document.getElementById('connStatus').innerHTML = '🔴 офлайн';
+        document.getElementById('messagesArea').innerHTML = '<div class="message message-system"><div class="message-author">⚠️ Ошибка</div><div class="message-text">Не удалось подключиться к серверу. Проверьте интернет.</div></div>';
+    }
     
     // ==================== СПИСОК КАМЕР (47 ШТ) ====================
     const cameras = [
@@ -246,59 +284,73 @@
         return hash.toString();
     }
     
-    // Firebase операции
+    // Firebase операции (только если Firebase готов)
     async function addSystemMessage(text) {
-        await messagesRef.push({ text, author: '📡 Система', userId: 'system', timestamp: Date.now(), type: 'system' });
+        if (!firebaseReady) return;
+        try {
+            await messagesRef.push({ text, author: '📡 Система', userId: 'system', timestamp: Date.now(), type: 'system' });
+        } catch(e) { console.warn(e); }
     }
     
     async function addChatMessage(text) {
-        if (!currentUser) return;
-        await messagesRef.push({ text, author: currentUser.name, userId: currentUser.id, timestamp: Date.now(), type: 'user' });
+        if (!firebaseReady || !currentUser) return;
+        try {
+            await messagesRef.push({ text, author: currentUser.name, userId: currentUser.id, timestamp: Date.now(), type: 'user' });
+        } catch(e) { console.warn(e); }
     }
     
     async function addAlertMessage(text, cameraName) {
-        if (!currentUser) return;
-        await messagesRef.push({ text, author: `🚨 Оповещение от ${currentUser.name}`, userId: currentUser.id, timestamp: Date.now(), type: 'alert', isAlert: true, alertAuthorId: currentUser.id, cameraName });
-        if (Notification.permission === 'granted') new Notification('⚠️ Новое оповещение!', { body: `${currentUser.name} сообщает о событии.` });
-        if (navigator.vibrate) navigator.vibrate(200);
+        if (!firebaseReady || !currentUser) return;
+        try {
+            await messagesRef.push({ text, author: `🚨 Оповещение от ${currentUser.name}`, userId: currentUser.id, timestamp: Date.now(), type: 'alert', isAlert: true, alertAuthorId: currentUser.id, cameraName });
+            if (Notification.permission === 'granted') new Notification('⚠️ Новое оповещение!', { body: `${currentUser.name} сообщает о событии.` });
+            if (navigator.vibrate) navigator.vibrate(200);
+        } catch(e) { console.warn(e); }
     }
     
     async function reportAlert(alertId, alertAuthorId, alertAuthorName) {
+        if (!firebaseReady) { alert('Чат недоступен'); return; }
         if (!currentUser) { openAuthModal('login'); return; }
         if (alertAuthorId === currentUser.id) { alert('Нельзя жаловаться на своё оповещение'); return; }
-        const reportRef = reportsRef.child(alertId);
-        const snapshot = await reportRef.once('value');
-        let reportData = snapshot.val() || { voters: [], count: 0 };
-        if (reportData.voters.includes(currentUser.id)) { alert('Вы уже голосовали'); return; }
-        reportData.voters.push(currentUser.id);
-        reportData.count++;
-        await reportRef.set(reportData);
-        await addSystemMessage(`📢 Пользователь ${currentUser.name} пожаловался на оповещение от ${alertAuthorName}. (голосов: ${reportData.count}/3)`);
-        if (reportData.count >= 3) {
-            const banUntil = Date.now() + 24 * 60 * 60 * 1000;
-            await bannedUsersRef.child(alertAuthorId).set({ banUntil, reason: '3+ жалоб' });
-            await reportRef.remove();
-            await messagesRef.child(alertId).remove();
-            await addSystemMessage(`🗑️ Ложное оповещение от ${alertAuthorName} удалено, автор заблокирован на 24ч.`);
-            if (currentUser.id === alertAuthorId) eventAlertBtn.disabled = true;
-        } else alert(`Жалоба принята. Голосов: ${reportData.count}/3 для блокировки.`);
+        try {
+            const reportRef = reportsRef.child(alertId);
+            const snapshot = await reportRef.once('value');
+            let reportData = snapshot.val() || { voters: [], count: 0 };
+            if (reportData.voters.includes(currentUser.id)) { alert('Вы уже голосовали'); return; }
+            reportData.voters.push(currentUser.id);
+            reportData.count++;
+            await reportRef.set(reportData);
+            await addSystemMessage(`📢 Пользователь ${currentUser.name} пожаловался на оповещение от ${alertAuthorName}. (голосов: ${reportData.count}/3)`);
+            if (reportData.count >= 3) {
+                const banUntil = Date.now() + 24 * 60 * 60 * 1000;
+                await bannedUsersRef.child(alertAuthorId).set({ banUntil, reason: '3+ жалоб' });
+                await reportRef.remove();
+                await messagesRef.child(alertId).remove();
+                await addSystemMessage(`🗑️ Ложное оповещение от ${alertAuthorName} удалено, автор заблокирован на 24ч.`);
+                if (currentUser.id === alertAuthorId) eventAlertBtn.disabled = true;
+            } else alert(`Жалоба принята. Голосов: ${reportData.count}/3 для блокировки.`);
+        } catch(e) { console.warn(e); alert('Ошибка при отправке жалобы'); }
     }
     
     async function isAlertBanned(userId) {
-        const snapshot = await bannedUsersRef.child(userId).once('value');
-        const data = snapshot.val();
-        if (data && data.banUntil > Date.now()) {
-            document.getElementById('spamWarning').innerText = '⚠️ Вы заблокированы за спам на 24 часа';
-            eventAlertBtn.disabled = true;
-            return true;
-        }
+        if (!firebaseReady) return false;
+        try {
+            const snapshot = await bannedUsersRef.child(userId).once('value');
+            const data = snapshot.val();
+            if (data && data.banUntil > Date.now()) {
+                document.getElementById('spamWarning').innerText = '⚠️ Вы заблокированы за спам на 24 часа';
+                eventAlertBtn.disabled = true;
+                return true;
+            }
+        } catch(e) { console.warn(e); }
         document.getElementById('spamWarning').innerText = '';
         eventAlertBtn.disabled = false;
         return false;
     }
     
-    // Авторизация
+    // Авторизация (только если Firebase готов)
     async function registerUser(name, password) {
+        if (!firebaseReady) throw new Error('Чат недоступен');
         const nameLower = name.toLowerCase();
         const snapshot = await usersRef.orderByChild('nameLower').equalTo(nameLower).once('value');
         if (snapshot.exists()) throw new Error('Пользователь уже существует');
@@ -308,6 +360,7 @@
     }
     
     async function loginUser(name, password) {
+        if (!firebaseReady) throw new Error('Чат недоступен');
         const snapshot = await usersRef.orderByChild('nameLower').equalTo(name.toLowerCase()).once('value');
         if (!snapshot.exists()) throw new Error('Пользователь не найден');
         let userData = null, userId = null;
@@ -317,6 +370,7 @@
     }
     
     async function demoLogin() {
+        if (!firebaseReady) { alert('Чат недоступен, попробуйте позже'); return; }
         try {
             const demoName = 'demo';
             const demoPassword = 'demo123';
@@ -348,7 +402,7 @@
             sendBtn.disabled = false;
             chatInput.placeholder = "Напишите сообщение...";
             eventAlertBtn.disabled = false;
-            isAlertBanned(currentUser.id);
+            if (firebaseReady) isAlertBanned(currentUser.id);
         } else {
             userStatusBadge.innerHTML = `👁️ гость`;
             userStatusBadge.style.background = '#2d2d44';
@@ -362,19 +416,22 @@
     }
     
     function openAuthModal(mode = 'login') {
+        if (!firebaseReady) { alert('Чат временно недоступен'); return; }
         isAuthMode = mode;
         if (mode === 'login') {
             modalTitle.innerText = '🔐 Вход';
             modalDesc.innerText = 'Введите имя и пароль';
             authSubmitBtn.innerText = 'Войти';
             switchModeDiv.innerHTML = 'Нет аккаунта? <span id="switchToReg">Зарегистрироваться</span>';
-            document.getElementById('switchToReg').onclick = () => openAuthModal('register');
+            const switchToReg = document.getElementById('switchToReg');
+            if (switchToReg) switchToReg.onclick = () => openAuthModal('register');
         } else {
             modalTitle.innerText = '📝 Регистрация';
             modalDesc.innerText = 'Создайте аккаунт (имя и пароль)';
             authSubmitBtn.innerText = 'Зарегистрироваться';
             switchModeDiv.innerHTML = 'Уже есть аккаунт? <span id="switchToLogin">Войти</span>';
-            document.getElementById('switchToLogin').onclick = () => openAuthModal('login');
+            const switchToLogin = document.getElementById('switchToLogin');
+            if (switchToLogin) switchToLogin.onclick = () => openAuthModal('login');
         }
         authName.value = '';
         authPassword.value = '';
@@ -387,6 +444,7 @@
         const password = authPassword.value.trim();
         if (!name || !password) { authModalError.innerText = 'Заполните все поля'; return; }
         if (name.length < 3) { authModalError.innerText = 'Имя должно быть не менее 3 символов'; return; }
+        if (password.length < 3) { authModalError.innerText = 'Пароль не менее 3 символов'; return; }
         try {
             if (isAuthMode === 'register') {
                 currentUser = await registerUser(name, password);
@@ -403,7 +461,7 @@
     }
     
     function logout() {
-        if (currentUser) addSystemMessage(`👋 ${currentUser.name} покинул чат`);
+        if (currentUser && firebaseReady) addSystemMessage(`👋 ${currentUser.name} покинул чат`);
         currentUser = null;
         applyAuthState();
     }
@@ -416,6 +474,7 @@
         videoEl.removeAttribute('src');
         videoEl.load();
         playerStatusSpan.innerText = '⏳ Подключение...';
+        
         if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
             videoEl.src = url;
             videoEl.play().catch(() => playerStatusSpan.innerText = '▶️ Нажмите для запуска');
@@ -459,6 +518,10 @@
     
     // Чат с Firebase
     function subscribeToMessages() {
+        if (!firebaseReady) {
+            messagesContainer.innerHTML = '<div class="message message-system"><div class="message-author">⚠️ Ошибка</div><div class="message-text">Чат недоступен. Проверьте подключение к интернету.</div></div>';
+            return;
+        }
         if (messageListener) {
             messagesRef.off('child_added', messageListener);
         }
@@ -513,15 +576,25 @@
         });
     }
     
+    // Fullscreen - исправленная версия
     function toggleFullscreen() {
+        const elem = playerSection;
         if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-            const req = playerSection.requestFullscreen || playerSection.webkitRequestFullscreen;
-            if (req) req.call(playerSection);
+            const requestMethod = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
+            if (requestMethod) {
+                requestMethod.call(elem).catch(err => {
+                    console.warn('Fullscreen error:', err);
+                    playerStatusSpan.innerText = '⚠️ Fullscreen не разрешен';
+                });
+            }
         } else {
-            const exit = document.exitFullscreen || document.webkitExitFullscreen;
-            if (exit) exit.call(document);
+            const exitMethod = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+            if (exitMethod) exitMethod.call(document);
         }
     }
+    
+    // Обработчики событий
+    fullscreenBtn.addEventListener('click', toggleFullscreen);
     
     async function sendMessage() {
         const text = chatInput.value.trim();
@@ -535,6 +608,7 @@
             openAuthModal('login');
             return;
         }
+        if (!firebaseReady) { alert('Чат недоступен'); return; }
         if (await isAlertBanned(currentUser.id)) return;
         const selectedText = cameraSelect.options[cameraSelect.selectedIndex]?.textContent || 'камере';
         await addAlertMessage(`🔴 ВНИМАНИЕ! Пользователь ${currentUser.name} сообщает о событии на ${selectedText}. Проверьте видеопоток!`, selectedText);
@@ -545,18 +619,21 @@
         e.preventDefault();
         deferredPrompt = e;
         installBtn.style.display = 'block';
+        console.log('PWA installation prompt ready');
     });
     
-    installBtn.addEventListener('click', async () => {
-        if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') {
-                installBtn.style.display = 'none';
+    if (installBtn) {
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    installBtn.style.display = 'none';
+                }
+                deferredPrompt = null;
             }
-            deferredPrompt = null;
-        }
-    });
+        });
+    }
     
     // Регистрация Service Worker
     if ('serviceWorker' in navigator) {
@@ -572,6 +649,35 @@
         Notification.requestPermission();
     }
     
+    // Проверка онлайн статуса
+    function updateOnlineStatus() {
+        const statusSpan = document.getElementById('connStatus');
+        if (navigator.onLine) {
+            statusSpan.innerHTML = '🟢 онлайн';
+            statusSpan.style.color = '#10b981';
+        } else {
+            statusSpan.innerHTML = '🔴 офлайн';
+            statusSpan.style.color = '#ef4444';
+        }
+    }
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+    
+    // Firebase статус подключения
+    if (firebaseReady) {
+        database.ref('.info/connected').on('value', (snap) => {
+            const statusSpan = document.getElementById('connStatus');
+            if (snap.val() === true) {
+                statusSpan.innerHTML = '🟢 онлайн';
+                statusSpan.style.color = '#10b981';
+            } else {
+                statusSpan.innerHTML = '🔴 офлайн';
+                statusSpan.style.color = '#ef4444';
+            }
+        });
+    }
+    
     // Инициализация
     function init() {
         initCameras();
@@ -584,7 +690,6 @@
             else if (e.key === 'Enter' && !currentUser) openAuthModal('login');
         });
         eventAlertBtn.addEventListener('click', sendAlert);
-        fullscreenBtn.addEventListener('click', toggleFullscreen);
         loginPromptBtn.addEventListener('click', () => openAuthModal('login'));
         authSubmitBtn.addEventListener('click', handleAuthSubmit);
         demoLoginBtn.addEventListener('click', demoLogin);
@@ -594,7 +699,11 @@
         logoutBtn.innerText = '🚪 Выйти';
         logoutBtn.style.cssText = 'background:#333; border:none; padding:4px 12px; border-radius:20px; margin-left:8px; font-size:11px; cursor:pointer; color:white;';
         logoutBtn.onclick = logout;
-        document.querySelector('.chat-header').appendChild(logoutBtn);
+        const header = document.querySelector('.chat-header');
+        if (header && !header.querySelector('.logout-btn')) {
+            logoutBtn.className = 'logout-btn';
+            header.appendChild(logoutBtn);
+        }
     }
     
     init();
