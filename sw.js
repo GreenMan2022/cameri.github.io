@@ -8,7 +8,7 @@ const urlsToCache = [
     'https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js'
 ];
 
-// Устанавливаем кэш
+// Установка и кэширование
 self.addEventListener('install', event => {
     console.log('[SW] Установка');
     event.waitUntil(
@@ -40,11 +40,11 @@ self.addEventListener('activate', event => {
     self.clients.claim();
 });
 
-// Стратегия: сначала сеть, потом кэш (для динамического контента)
+// Стратегия: сначала сеть, при ошибке - кэш
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
     
-    // Firebase и HLS не кэшируем (они всегда из сети)
+    // Firebase и HLS не кэшируем (всегда из сети)
     if (url.hostname.includes('googleapis.com') || 
         url.hostname.includes('firebaseio.com') ||
         url.hostname.includes('gstatic.com') ||
