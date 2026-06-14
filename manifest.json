@@ -1,7 +1,7 @@
 {
-  "name": "Pervouralsk CamChat",
-  "short_name": "CamChat",
-  "description": "47 камер видеонаблюдения Первоуральска с общим чатом",
+  "name": "Pervouralsk Cameri",
+  "short_name": "PvkCams",
+  "description": "Камеры видеонаблюдения Первоуральска с общим чатом",
   "start_url": "/",
   "display": "standalone",
   "theme_color": "#0a0a1a",
