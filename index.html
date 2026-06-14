@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0a0a1a">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="CamChat">
@@ -18,24 +19,20 @@
         body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: #0f0f1a; color: #eef2ff; padding-bottom: env(safe-area-inset-bottom); }
         .app { max-width: 700px; margin: 0 auto; background: #0f0f1a; min-height: 100vh; display: flex; flex-direction: column; }
         
-        /* Player */
         .player-section { background: #000; position: relative; width: 100%; aspect-ratio: 16/9; background-color: #1a1a2e; }
         video { width: 100%; height: 100%; object-fit: contain; background: #000; }
         .player-status { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,0.65); backdrop-filter: blur(6px); padding: 4px 12px; border-radius: 24px; font-size: 12px; z-index: 2; }
         .fullscreen-btn { position: absolute; bottom: 12px; right: 12px; background: rgba(0,0,0,0.7); border: none; width: 40px; height: 40px; border-radius: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; color: white; font-size: 20px; background: rgba(0,0,0,0.6); }
         
-        /* Actions */
         .action-bar { display: flex; margin: 12px 16px 8px; gap: 12px; }
         .event-alert-btn { flex: 1; background: linear-gradient(135deg, #dc2626, #b91c1c); border: none; padding: 12px; border-radius: 40px; font-weight: 700; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: 0.2s; }
         .event-alert-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         
-        /* Camera selector */
         .camera-selector { margin: 0 16px 12px; }
         .select-label { font-size: 14px; margin-bottom: 6px; color: #b9c3e6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
         select { width: 100%; padding: 14px 16px; background: #1e1e2f; border: 1px solid #2d2d42; border-radius: 20px; color: #f0f3ff; font-size: 14px; cursor: pointer; }
         select option { padding: 8px; }
         
-        /* Chat */
         .chat-container { flex: 1; margin: 8px 16px 20px; background: #12121c; border-radius: 28px; display: flex; flex-direction: column; border: 1px solid #28283a; overflow: hidden; }
         .chat-header { padding: 14px 18px; background: #1a1a28; display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
         .login-prompt { background: #2c3e66; padding: 6px 12px; border-radius: 30px; font-size: 12px; cursor: pointer; }
@@ -59,7 +56,6 @@
         .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .spam-warning { font-size: 11px; color: #ffaa66; padding: 6px 14px; text-align: center; background: #1a1a28; }
         
-        /* Auth modal */
         .auth-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); backdrop-filter: blur(12px); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; }
         .auth-card { background: #1a1a2e; border-radius: 40px; padding: 32px 24px; width: 100%; max-width: 340px; text-align: center; border: 1px solid #2d2d50; }
         .auth-card h2 { margin-bottom: 8px; }
@@ -70,28 +66,10 @@
         .switch-mode span { color: #4c6ef5; cursor: pointer; text-decoration: underline; }
         .guest-badge { background: #2d2d44; padding: 4px 12px; border-radius: 20px; font-size: 11px; margin-left: 8px; }
         .error-msg { color: #ff8888; font-size: 12px; margin-top: 10px; }
-        .offline-badge { background: #ffaa44; color: #1a1a2e; padding: 2px 8px; border-radius: 12px; font-size: 10px; margin-left: 8px; }
         .cam-count { background: #4c6ef5; padding: 2px 8px; border-radius: 20px; font-size: 11px; }
         
-        /* Fullscreen styles */
-        .player-section:fullscreen {
-            width: 100vw;
-            height: 100vh;
-            aspect-ratio: unset;
-            background: black;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .player-section:fullscreen video {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-        .player-section:-webkit-full-screen {
-            width: 100vw;
-            height: 100vh;
-        }
+        .player-section:fullscreen { width: 100vw; height: 100vh; aspect-ratio: unset; background: black; display: flex; align-items: center; justify-content: center; }
+        .player-section:fullscreen video { width: 100%; height: 100%; object-fit: contain; }
         
         @media (max-width: 480px) { .messages-area { min-height: 240px; } }
     </style>
@@ -125,7 +103,7 @@
         <div class="messages-area" id="messagesArea">
             <div class="message message-system">
                 <div class="message-author">📡 Система</div>
-                <div class="message-text">Подключение к чату...</div>
+                <div class="message-text">Загрузка чата...</div>
                 <div class="message-time">--:--:--</div>
             </div>
         </div>
@@ -151,11 +129,11 @@
 </div>
 
 <script>
-    // ==================== FIREBASE КОНФИГ (ВАШИ ДАННЫЕ) ====================
+    // ==================== FIREBASE КОНФИГ ====================
     const firebaseConfig = {
         apiKey: "AIzaSyBCLe4cmLQ6BkzBSE9Wkc1BRFp_gqh4sPE",
         authDomain: "pervouralsk-1527512006778.firebaseapp.com",
-        databaseURL: "https://pervouralsk-1527512006778.firebaseio.com",
+        databaseURL: "https://pervouralsk-1527512006778-default-rtdb.firebaseio.com",
         projectId: "pervouralsk-1527512006778",
         storageBucket: "pervouralsk-1527512006778.firebasestorage.app",
         messagingSenderId: "859305403936",
@@ -175,14 +153,11 @@
         reportsRef = database.ref('spam_reports');
         firebaseReady = true;
         console.log('✅ Firebase инициализирован');
-        document.getElementById('connStatus').innerHTML = '🟢 онлайн';
     } catch (e) {
         console.error('❌ Firebase ошибка:', e);
-        document.getElementById('connStatus').innerHTML = '🔴 офлайн';
-        document.getElementById('messagesArea').innerHTML = '<div class="message message-system"><div class="message-author">⚠️ Ошибка</div><div class="message-text">Не удалось подключиться к серверу. Проверьте интернет.</div></div>';
     }
     
-    // ==================== СПИСОК КАМЕР (47 ШТ) ====================
+    // ==================== СПИСОК КАМЕР ====================
     const cameras = [
         { id: 1, name: "Перекрёсток Емлина-Ленина", url: "https://video.interra.ru/glaz.naroda.38-e60a533a34/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAHz8AV5bAgwb_bq4Q9BexUA3ze2E" },
         { id: 2, name: "Перекрёсток Ленина-Космонавтов", url: "https://video.interra.ru/glaz.naroda.69-88107b23ac/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAABMSk4SEGVZtDQ81gwVqeUBRBIXE" },
@@ -240,6 +215,7 @@
     let isAuthMode = 'login';
     let messageListener = null;
     let deferredPrompt;
+    let messages = [];
     
     // DOM элементы
     const videoEl = document.getElementById('webcamVideo');
@@ -284,25 +260,79 @@
         return hash.toString();
     }
     
-    // Firebase операции (только если Firebase готов)
+    // Функция отрисовки сообщений
+    function renderMessages() {
+        if (!messagesContainer) return;
+        messagesContainer.innerHTML = '';
+        
+        if (messages.length === 0) {
+            messagesContainer.innerHTML = '<div class="message message-system"><div class="message-author">📡 Система</div><div class="message-text">Чат пуст. Напишите первое сообщение!</div></div>';
+            return;
+        }
+        
+        messages.forEach(msg => {
+            const messageDiv = document.createElement('div');
+            let cls = 'message';
+            if (currentUser && msg.userId === currentUser.id && msg.type === 'user') cls += ' message-self';
+            if (msg.isAlert) cls += ' message-alert';
+            if (msg.type === 'system') cls += ' message-system';
+            messageDiv.className = cls;
+            
+            let authorDisplay = escapeHtml(msg.author);
+            if (msg.isAlert) authorDisplay = '🚨 ' + authorDisplay;
+            
+            let actionsHtml = '';
+            if (msg.isAlert && msg.type === 'alert') {
+                actionsHtml = `
+                    <div class="alert-actions">
+                        <button class="alert-btn switch-cam-btn" data-camera="${escapeHtml(msg.cameraName || '')}">📺 Перейти на камеру</button>
+                        <button class="alert-btn report-btn" data-id="${msg.id}" data-author="${msg.alertAuthorId || msg.userId}" data-name="${escapeHtml(msg.author.replace('🚨 Оповещение от ', ''))}">🚫 Пожаловаться</button>
+                    </div>
+                `;
+            }
+            
+            messageDiv.innerHTML = `
+                <div class="message-author">${authorDisplay}</div>
+                <div class="message-text">${escapeHtml(msg.text)}</div>
+                <div class="message-time">${getFormattedTime(msg.timestamp)}</div>
+                ${actionsHtml}
+            `;
+            messagesContainer.appendChild(messageDiv);
+        });
+        
+        // Обработчики кнопок
+        document.querySelectorAll('.switch-cam-btn').forEach(btn => {
+            btn.onclick = () => switchToCameraByName(btn.getAttribute('data-camera'));
+        });
+        document.querySelectorAll('.report-btn').forEach(btn => {
+            btn.onclick = () => reportAlert(btn.getAttribute('data-id'), btn.getAttribute('data-author'), btn.getAttribute('data-name'));
+        });
+        
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    // Firebase операции
     async function addSystemMessage(text) {
         if (!firebaseReady) return;
         try {
-            await messagesRef.push({ text, author: '📡 Система', userId: 'system', timestamp: Date.now(), type: 'system' });
+            const newMsg = { text, author: '📡 Система', userId: 'system', timestamp: Date.now(), type: 'system' };
+            await messagesRef.push(newMsg);
         } catch(e) { console.warn(e); }
     }
     
     async function addChatMessage(text) {
         if (!firebaseReady || !currentUser) return;
         try {
-            await messagesRef.push({ text, author: currentUser.name, userId: currentUser.id, timestamp: Date.now(), type: 'user' });
+            const newMsg = { text, author: currentUser.name, userId: currentUser.id, timestamp: Date.now(), type: 'user' };
+            await messagesRef.push(newMsg);
         } catch(e) { console.warn(e); }
     }
     
     async function addAlertMessage(text, cameraName) {
         if (!firebaseReady || !currentUser) return;
         try {
-            await messagesRef.push({ text, author: `🚨 Оповещение от ${currentUser.name}`, userId: currentUser.id, timestamp: Date.now(), type: 'alert', isAlert: true, alertAuthorId: currentUser.id, cameraName });
+            const newMsg = { text, author: `🚨 Оповещение от ${currentUser.name}`, userId: currentUser.id, timestamp: Date.now(), type: 'alert', isAlert: true, alertAuthorId: currentUser.id, cameraName };
+            await messagesRef.push(newMsg);
             if (Notification.permission === 'granted') new Notification('⚠️ Новое оповещение!', { body: `${currentUser.name} сообщает о событии.` });
             if (navigator.vibrate) navigator.vibrate(200);
         } catch(e) { console.warn(e); }
@@ -348,7 +378,7 @@
         return false;
     }
     
-    // Авторизация (только если Firebase готов)
+    // Авторизация
     async function registerUser(name, password) {
         if (!firebaseReady) throw new Error('Чат недоступен');
         const nameLower = name.toLowerCase();
@@ -412,7 +442,6 @@
             chatInput.placeholder = "Войдите, чтобы писать...";
             eventAlertBtn.disabled = true;
         }
-        renderMessages();
     }
     
     function openAuthModal(mode = 'login') {
@@ -503,9 +532,7 @@
             cameraSelect.appendChild(opt);
         });
         if (cameras.length) loadCameraStream(cameras[0].url);
-        cameraSelect.addEventListener('change', () => {
-            loadCameraStream(cameraSelect.value);
-        });
+        cameraSelect.addEventListener('change', () => loadCameraStream(cameraSelect.value));
     }
     
     function switchToCameraByName(cameraName) {
@@ -516,7 +543,7 @@
         }
     }
     
-    // Чат с Firebase
+    // Подписка на сообщения Firebase
     function subscribeToMessages() {
         if (!firebaseReady) {
             messagesContainer.innerHTML = '<div class="message message-system"><div class="message-author">⚠️ Ошибка</div><div class="message-text">Чат недоступен. Проверьте подключение к интернету.</div></div>';
@@ -525,58 +552,19 @@
         if (messageListener) {
             messagesRef.off('child_added', messageListener);
         }
-        messagesContainer.innerHTML = '';
+        messages = [];
         
         messageListener = messagesRef.orderByChild('timestamp').limitToLast(100).on('child_added', (snapshot) => {
             const msg = snapshot.val();
             if (!msg) return;
-            
-            const messageDiv = document.createElement('div');
-            let cls = 'message';
-            if (currentUser && msg.userId === currentUser.id && msg.type === 'user') cls += ' message-self';
-            if (msg.isAlert) cls += ' message-alert';
-            if (msg.type === 'system') cls += ' message-system';
-            messageDiv.className = cls;
-            
-            let authorDisplay = escapeHtml(msg.author);
-            if (msg.isAlert) authorDisplay = '🚨 ' + authorDisplay;
-            
-            let actionsHtml = '';
-            if (msg.isAlert && msg.type === 'alert') {
-                actionsHtml = `
-                    <div class="alert-actions">
-                        <button class="alert-btn switch-cam-btn" data-camera="${escapeHtml(msg.cameraName || '')}">📺 Перейти на камеру</button>
-                        <button class="alert-btn report-btn" data-id="${snapshot.key}" data-author="${msg.alertAuthorId || msg.userId}" data-name="${escapeHtml(msg.author.replace('🚨 Оповещение от ', ''))}">🚫 Пожаловаться</button>
-                    </div>
-                `;
-            }
-            
-            messageDiv.innerHTML = `
-                <div class="message-author">${authorDisplay}</div>
-                <div class="message-text">${escapeHtml(msg.text)}</div>
-                <div class="message-time">${getFormattedTime(msg.timestamp)}</div>
-                ${actionsHtml}
-            `;
-            messagesContainer.appendChild(messageDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            
-            // Обработчики кнопок
-            const switchBtn = messageDiv.querySelector('.switch-cam-btn');
-            if (switchBtn) {
-                switchBtn.onclick = () => switchToCameraByName(switchBtn.getAttribute('data-camera'));
-            }
-            const reportBtn = messageDiv.querySelector('.report-btn');
-            if (reportBtn) {
-                reportBtn.onclick = () => reportAlert(
-                    reportBtn.getAttribute('data-id'),
-                    reportBtn.getAttribute('data-author'),
-                    reportBtn.getAttribute('data-name')
-                );
-            }
+            msg.id = snapshot.key;
+            messages.push(msg);
+            // Сортируем по времени
+            messages.sort((a, b) => a.timestamp - b.timestamp);
+            renderMessages();
         });
     }
     
-    // Fullscreen - исправленная версия
     function toggleFullscreen() {
         const elem = playerSection;
         if (!document.fullscreenElement && !document.webkitFullscreenElement) {
@@ -584,7 +572,6 @@
             if (requestMethod) {
                 requestMethod.call(elem).catch(err => {
                     console.warn('Fullscreen error:', err);
-                    playerStatusSpan.innerText = '⚠️ Fullscreen не разрешен';
                 });
             }
         } else {
@@ -592,9 +579,6 @@
             if (exitMethod) exitMethod.call(document);
         }
     }
-    
-    // Обработчики событий
-    fullscreenBtn.addEventListener('click', toggleFullscreen);
     
     async function sendMessage() {
         const text = chatInput.value.trim();
@@ -649,35 +633,6 @@
         Notification.requestPermission();
     }
     
-    // Проверка онлайн статуса
-    function updateOnlineStatus() {
-        const statusSpan = document.getElementById('connStatus');
-        if (navigator.onLine) {
-            statusSpan.innerHTML = '🟢 онлайн';
-            statusSpan.style.color = '#10b981';
-        } else {
-            statusSpan.innerHTML = '🔴 офлайн';
-            statusSpan.style.color = '#ef4444';
-        }
-    }
-    window.addEventListener('online', updateOnlineStatus);
-    window.addEventListener('offline', updateOnlineStatus);
-    updateOnlineStatus();
-    
-    // Firebase статус подключения
-    if (firebaseReady) {
-        database.ref('.info/connected').on('value', (snap) => {
-            const statusSpan = document.getElementById('connStatus');
-            if (snap.val() === true) {
-                statusSpan.innerHTML = '🟢 онлайн';
-                statusSpan.style.color = '#10b981';
-            } else {
-                statusSpan.innerHTML = '🔴 офлайн';
-                statusSpan.style.color = '#ef4444';
-            }
-        });
-    }
-    
     // Инициализация
     function init() {
         initCameras();
@@ -690,6 +645,7 @@
             else if (e.key === 'Enter' && !currentUser) openAuthModal('login');
         });
         eventAlertBtn.addEventListener('click', sendAlert);
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
         loginPromptBtn.addEventListener('click', () => openAuthModal('login'));
         authSubmitBtn.addEventListener('click', handleAuthSubmit);
         demoLoginBtn.addEventListener('click', demoLogin);
