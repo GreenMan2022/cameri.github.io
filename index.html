@@ -8,7 +8,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="CamChat">
-    <base href="/cameri.github.io/">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%234c6ef5'/%3E%3Ccircle cx='50' cy='40' r='18' fill='white'/%3E%3C/svg%3E">
     <title>Pervouralsk CamChat | 47 камер видеонаблюдения</title>
@@ -35,9 +34,11 @@
         select option { padding: 8px; }
         
         .chat-container { flex: 1; margin: 8px 16px 20px; background: #12121c; border-radius: 28px; display: flex; flex-direction: column; border: 1px solid #28283a; overflow: hidden; }
-        .chat-header { padding: 14px 18px; background: #1a1a28; display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
-        .login-prompt { background: #2c3e66; padding: 6px 12px; border-radius: 30px; font-size: 12px; cursor: pointer; }
-        .install-prompt { background: #4c6ef5; padding: 6px 12px; border-radius: 30px; font-size: 11px; cursor: pointer; margin-left: 8px; }
+        .chat-header { padding: 14px 18px; background: #1a1a28; display: flex; justify-content: space-between; align-items: center; font-weight: 600; flex-wrap: wrap; gap: 8px; }
+        .login-prompt { background: #2c3e66; padding: 6px 12px; border-radius: 30px; font-size: 12px; cursor: pointer; border: none; color: white; }
+        .login-prompt.logout-btn { background: #ef4444 !important; }
+        .login-prompt.logout-btn:hover { background: #dc2626 !important; }
+        .install-prompt { background: #4c6ef5; padding: 6px 12px; border-radius: 30px; font-size: 11px; cursor: pointer; margin-left: 8px; border: none; color: white; }
         .messages-area { min-height: 280px; max-height: 320px; overflow-y: auto; padding: 14px 12px; display: flex; flex-direction: column; gap: 12px; }
         .message { background: #1f1f2e; padding: 10px 14px; border-radius: 20px; max-width: 100%; word-wrap: break-word; }
         .message-self { background: #2c3e66; align-self: flex-end; max-width: 92%; }
@@ -58,21 +59,33 @@
         .spam-warning { font-size: 11px; color: #ffaa66; padding: 6px 14px; text-align: center; background: #1a1a28; }
         
         .auth-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); backdrop-filter: blur(12px); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; }
-        .auth-card { background: #1a1a2e; border-radius: 40px; padding: 32px 24px; width: 100%; max-width: 340px; text-align: center; border: 1px solid #2d2d50; }
+        .auth-card { background: #1a1a2e; border-radius: 40px; padding: 32px 24px; width: 100%; max-width: 340px; text-align: center; border: 1px solid #2d2d50; position: relative; }
         .auth-card h2 { margin-bottom: 8px; }
-        .auth-input { width: 100%; padding: 14px 18px; margin: 8px 0; background: #25253a; border: 1px solid #3a3a55; border-radius: 60px; color: white; font-size: 16px; }
-        .auth-btn { width: 100%; background: #4c6ef5; border: none; padding: 14px; border-radius: 60px; font-weight: bold; color: white; font-size: 16px; margin-top: 12px; cursor: pointer; }
-        .demo-account { background: #2a2a3e; border-radius: 30px; padding: 12px; margin-top: 16px; font-size: 12px; cursor: pointer; border: 1px solid #4c6ef5; }
+        .auth-card p { color: #9ca3cf; margin-bottom: 16px; font-size: 14px; }
+        .close-auth { position: absolute; top: 16px; right: 20px; background: none; border: none; color: #8f9bb3; font-size: 24px; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: 0.2s; }
+        .close-auth:hover { background: #2d2d44; color: white; }
+        .auth-input { width: 100%; padding: 14px 18px; margin: 8px 0; background: #25253a; border: 1px solid #3a3a55; border-radius: 60px; color: white; font-size: 16px; transition: 0.2s; }
+        .auth-input.error { border-color: #ef4444 !important; animation: shake 0.3s ease-in-out; }
+        .auth-btn { width: 100%; background: #4c6ef5; border: none; padding: 14px; border-radius: 60px; font-weight: bold; color: white; font-size: 16px; margin-top: 12px; cursor: pointer; transition: 0.2s; }
+        .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .demo-account { background: #2a2a3e; border-radius: 30px; padding: 12px; margin-top: 16px; font-size: 12px; cursor: pointer; border: 1px solid #4c6ef5; transition: 0.2s; }
+        .demo-account:hover { background: #3a3a55; }
         .switch-mode { margin-top: 16px; font-size: 13px; color: #8f9bb3; }
         .switch-mode span { color: #4c6ef5; cursor: pointer; text-decoration: underline; }
         .guest-badge { background: #2d2d44; padding: 4px 12px; border-radius: 20px; font-size: 11px; margin-left: 8px; }
         .error-msg { color: #ff8888; font-size: 12px; margin-top: 10px; }
         .cam-count { background: #4c6ef5; padding: 2px 8px; border-radius: 20px; font-size: 11px; }
         
+        .auth-status { margin-bottom: 12px; padding: 10px; border-radius: 12px; font-size: 13px; display: none; }
+        .auth-status-success { background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #10b981; }
+        .auth-status-error { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; }
+        .auth-status-info { background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #3b82f6; }
+        
         .player-section:fullscreen { width: 100vw; height: 100vh; aspect-ratio: unset; background: black; display: flex; align-items: center; justify-content: center; }
         .player-section:fullscreen video { width: 100%; height: 100%; object-fit: contain; }
         
-        @media (max-width: 480px) { .messages-area { min-height: 240px; } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        @media (max-width: 480px) { .messages-area { min-height: 240px; } .chat-header { flex-direction: column; align-items: stretch; } }
     </style>
 </head>
 <body>
@@ -96,9 +109,9 @@
     <div class="chat-container">
         <div class="chat-header">
             <span>💬 Общий чат <span id="connStatus">🟢 онлайн</span></span>
-            <div style="display: flex; gap: 8px;">
-                <div class="install-prompt" id="installBtn" style="display:none;">📲 Установить</div>
-                <div class="login-prompt" id="loginPromptBtn">🔑 Войти</div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="install-prompt" id="installBtn" style="display:none;">📲 Установить</button>
+                <button class="login-prompt" id="loginPromptBtn">🔑 Войти</button>
             </div>
         </div>
         <div class="messages-area" id="messagesArea">
@@ -118,13 +131,11 @@
 
 <div class="auth-modal" id="authModal">
     <div class="auth-card">
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
-            <button id="closeAuthBtn" style="background: none; border: none; color: #8f9bb3; font-size: 24px; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">✕</button>
-        </div>
+        <button class="close-auth" id="closeAuthBtn">✕</button>
         <h2 id="modalTitle">🔐 Вход</h2>
         <p id="modalDesc">Введите имя и пароль</p>
         
-        <div id="authStatus" style="margin-bottom: 12px; padding: 8px; border-radius: 12px; font-size: 13px; display: none;"></div>
+        <div id="authStatus" class="auth-status"></div>
         
         <input type="text" class="auth-input" id="authName" placeholder="Имя пользователя" autocomplete="off">
         <input type="password" class="auth-input" id="authPassword" placeholder="Пароль" autocomplete="off">
@@ -164,6 +175,7 @@
         console.log('✅ Firebase инициализирован');
     } catch (e) {
         console.error('❌ Firebase ошибка:', e);
+        document.getElementById('connStatus').innerHTML = '🔴 ошибка';
     }
     
     // ==================== СПИСОК КАМЕР ====================
@@ -248,6 +260,7 @@
     const authModalError = document.getElementById('authModalError');
     const demoLoginBtn = document.getElementById('demoLoginBtn');
     const installBtn = document.getElementById('installBtn');
+    const closeAuthBtn = document.getElementById('closeAuthBtn');
     
     // Вспомогательные функции
     function getFormattedTime(timestamp) {
@@ -269,16 +282,33 @@
         return hash.toString();
     }
     
+    function showAuthStatus(message, type = 'info') {
+        const statusDiv = document.getElementById('authStatus');
+        statusDiv.style.display = 'block';
+        statusDiv.className = `auth-status auth-status-${type}`;
+        statusDiv.innerHTML = message;
+        setTimeout(() => { if (statusDiv) statusDiv.style.display = 'none'; }, 3000);
+    }
+    
+    function closeAuthModal() {
+        if (authModal) authModal.style.display = 'none';
+        if (authName) authName.value = '';
+        if (authPassword) authPassword.value = '';
+        const statusDiv = document.getElementById('authStatus');
+        if (statusDiv) statusDiv.style.display = 'none';
+        if (authModalError) authModalError.innerText = '';
+        if (authName) authName.style.borderColor = '#3a3a55';
+        if (authPassword) authPassword.style.borderColor = '#3a3a55';
+    }
+    
     // Функция отрисовки сообщений
     function renderMessages() {
         if (!messagesContainer) return;
         messagesContainer.innerHTML = '';
-        
         if (messages.length === 0) {
             messagesContainer.innerHTML = '<div class="message message-system"><div class="message-author">📡 Система</div><div class="message-text">Чат пуст. Напишите первое сообщение!</div></div>';
             return;
         }
-        
         messages.forEach(msg => {
             const messageDiv = document.createElement('div');
             let cls = 'message';
@@ -286,62 +316,35 @@
             if (msg.isAlert) cls += ' message-alert';
             if (msg.type === 'system') cls += ' message-system';
             messageDiv.className = cls;
-            
             let authorDisplay = escapeHtml(msg.author);
             if (msg.isAlert) authorDisplay = '🚨 ' + authorDisplay;
-            
             let actionsHtml = '';
             if (msg.isAlert && msg.type === 'alert') {
-                actionsHtml = `
-                    <div class="alert-actions">
-                        <button class="alert-btn switch-cam-btn" data-camera="${escapeHtml(msg.cameraName || '')}">📺 Перейти на камеру</button>
-                        <button class="alert-btn report-btn" data-id="${msg.id}" data-author="${msg.alertAuthorId || msg.userId}" data-name="${escapeHtml(msg.author.replace('🚨 Оповещение от ', ''))}">🚫 Пожаловаться</button>
-                    </div>
-                `;
+                actionsHtml = `<div class="alert-actions"><button class="alert-btn switch-cam-btn" data-camera="${escapeHtml(msg.cameraName || '')}">📺 Перейти на камеру</button><button class="alert-btn report-btn" data-id="${msg.id}" data-author="${msg.alertAuthorId || msg.userId}" data-name="${escapeHtml(msg.author.replace('🚨 Оповещение от ', ''))}">🚫 Пожаловаться</button></div>`;
             }
-            
-            messageDiv.innerHTML = `
-                <div class="message-author">${authorDisplay}</div>
-                <div class="message-text">${escapeHtml(msg.text)}</div>
-                <div class="message-time">${getFormattedTime(msg.timestamp)}</div>
-                ${actionsHtml}
-            `;
+            messageDiv.innerHTML = `<div class="message-author">${authorDisplay}</div><div class="message-text">${escapeHtml(msg.text)}</div><div class="message-time">${getFormattedTime(msg.timestamp)}</div>${actionsHtml}`;
             messagesContainer.appendChild(messageDiv);
         });
-        
-        // Обработчики кнопок
-        document.querySelectorAll('.switch-cam-btn').forEach(btn => {
-            btn.onclick = () => switchToCameraByName(btn.getAttribute('data-camera'));
-        });
-        document.querySelectorAll('.report-btn').forEach(btn => {
-            btn.onclick = () => reportAlert(btn.getAttribute('data-id'), btn.getAttribute('data-author'), btn.getAttribute('data-name'));
-        });
-        
+        document.querySelectorAll('.switch-cam-btn').forEach(btn => { btn.onclick = () => switchToCameraByName(btn.getAttribute('data-camera')); });
+        document.querySelectorAll('.report-btn').forEach(btn => { btn.onclick = () => reportAlert(btn.getAttribute('data-id'), btn.getAttribute('data-author'), btn.getAttribute('data-name')); });
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
     
     // Firebase операции
     async function addSystemMessage(text) {
         if (!firebaseReady) return;
-        try {
-            const newMsg = { text, author: '📡 Система', userId: 'system', timestamp: Date.now(), type: 'system' };
-            await messagesRef.push(newMsg);
-        } catch(e) { console.warn(e); }
+        try { await messagesRef.push({ text, author: '📡 Система', userId: 'system', timestamp: Date.now(), type: 'system' }); } catch(e) { console.warn(e); }
     }
     
     async function addChatMessage(text) {
         if (!firebaseReady || !currentUser) return;
-        try {
-            const newMsg = { text, author: currentUser.name, userId: currentUser.id, timestamp: Date.now(), type: 'user' };
-            await messagesRef.push(newMsg);
-        } catch(e) { console.warn(e); }
+        try { await messagesRef.push({ text, author: currentUser.name, userId: currentUser.id, timestamp: Date.now(), type: 'user' }); } catch(e) { console.warn(e); }
     }
     
     async function addAlertMessage(text, cameraName) {
         if (!firebaseReady || !currentUser) return;
         try {
-            const newMsg = { text, author: `🚨 Оповещение от ${currentUser.name}`, userId: currentUser.id, timestamp: Date.now(), type: 'alert', isAlert: true, alertAuthorId: currentUser.id, cameraName };
-            await messagesRef.push(newMsg);
+            await messagesRef.push({ text, author: `🚨 Оповещение от ${currentUser.name}`, userId: currentUser.id, timestamp: Date.now(), type: 'alert', isAlert: true, alertAuthorId: currentUser.id, cameraName });
             if (Notification.permission === 'granted') new Notification('⚠️ Новое оповещение!', { body: `${currentUser.name} сообщает о событии.` });
             if (navigator.vibrate) navigator.vibrate(200);
         } catch(e) { console.warn(e); }
@@ -409,7 +412,8 @@
     }
     
     async function demoLogin() {
-        if (!firebaseReady) { alert('Чат недоступен, попробуйте позже'); return; }
+        if (!firebaseReady) { showAuthStatus('Чат недоступен, попробуйте позже', 'error'); return; }
+        showAuthStatus('⏳ Вход через демо-аккаунт...', 'info');
         try {
             const demoName = 'demo';
             const demoPassword = 'demo123';
@@ -424,11 +428,15 @@
                 snapshot.forEach(child => { userId = child.key; });
                 currentUser = { id: userId, name: demoName };
             }
-            authModal.style.display = 'none';
-            applyAuthState();
-            await addSystemMessage(`👋 ${currentUser.name} присоединился к чату!`);
+            showAuthStatus('✅ Вход через демо-аккаунт выполнен!', 'success');
+            setTimeout(() => {
+                if (authModal) authModal.style.display = 'none';
+                applyAuthState();
+                addSystemMessage(`👋 ${currentUser.name} присоединился к чату!`);
+            }, 1000);
         } catch (err) {
-            authModalError.innerText = err.message;
+            showAuthStatus(`❌ Ошибка: ${err.message}`, 'error');
+            if (authModalError) authModalError.innerText = err.message;
         }
     }
     
@@ -442,6 +450,19 @@
             chatInput.placeholder = "Напишите сообщение...";
             eventAlertBtn.disabled = false;
             if (firebaseReady) isAlertBanned(currentUser.id);
+            // Обновляем кнопку выхода
+            const headerRightDiv = document.querySelector('.chat-header > div:last-child');
+            if (headerRightDiv) {
+                let oldBtn = headerRightDiv.querySelector('.logout-btn');
+                if (!oldBtn) {
+                    const logoutBtn = document.createElement('button');
+                    logoutBtn.innerText = '🚪 Выйти';
+                    logoutBtn.className = 'login-prompt logout-btn';
+                    logoutBtn.style.cssText = 'background:#ef4444; border:none; padding:6px 12px; border-radius:30px; font-size:12px; cursor:pointer; color:white;';
+                    logoutBtn.onclick = () => { if (confirm('Вы уверены, что хотите выйти?')) logout(); };
+                    headerRightDiv.appendChild(logoutBtn);
+                }
+            }
         } else {
             userStatusBadge.innerHTML = `👁️ гость`;
             userStatusBadge.style.background = '#2d2d44';
@@ -450,12 +471,23 @@
             sendBtn.disabled = true;
             chatInput.placeholder = "Войдите, чтобы писать...";
             eventAlertBtn.disabled = true;
+            // Удаляем кнопку выхода
+            const logoutBtn = document.querySelector('.logout-btn');
+            if (logoutBtn) logoutBtn.remove();
         }
     }
     
     function openAuthModal(mode = 'login') {
-        if (!firebaseReady) { alert('Чат временно недоступен'); return; }
+        if (!firebaseReady) { showAuthStatus('Чат временно недоступен. Попробуйте позже.', 'error'); return; }
         isAuthMode = mode;
+        const statusDiv = document.getElementById('authStatus');
+        if (statusDiv) statusDiv.style.display = 'none';
+        if (authModalError) authModalError.innerText = '';
+        if (authName) authName.value = '';
+        if (authPassword) authPassword.value = '';
+        if (authName) authName.style.borderColor = '#3a3a55';
+        if (authPassword) authPassword.style.borderColor = '#3a3a55';
+        
         if (mode === 'login') {
             modalTitle.innerText = '🔐 Вход';
             modalDesc.innerText = 'Введите имя и пароль';
@@ -471,30 +503,60 @@
             const switchToLogin = document.getElementById('switchToLogin');
             if (switchToLogin) switchToLogin.onclick = () => openAuthModal('login');
         }
-        authName.value = '';
-        authPassword.value = '';
-        authModalError.innerText = '';
-        authModal.style.display = 'flex';
+        if (authModal) authModal.style.display = 'flex';
     }
     
     async function handleAuthSubmit() {
         const name = authName.value.trim();
         const password = authPassword.value.trim();
-        if (!name || !password) { authModalError.innerText = 'Заполните все поля'; return; }
-        if (name.length < 3) { authModalError.innerText = 'Имя должно быть не менее 3 символов'; return; }
-        if (password.length < 3) { authModalError.innerText = 'Пароль не менее 3 символов'; return; }
+        
+        if (!name || !password) {
+            showAuthStatus('❌ Заполните все поля!', 'error');
+            if (!name) authName.style.borderColor = '#ef4444';
+            if (!password) authPassword.style.borderColor = '#ef4444';
+            setTimeout(() => {
+                authName.style.borderColor = '#3a3a55';
+                authPassword.style.borderColor = '#3a3a55';
+            }, 2000);
+            return;
+        }
+        if (name.length < 3) {
+            showAuthStatus('❌ Имя должно быть не менее 3 символов!', 'error');
+            authName.style.borderColor = '#ef4444';
+            setTimeout(() => authName.style.borderColor = '#3a3a55', 2000);
+            return;
+        }
+        if (password.length < 3) {
+            showAuthStatus('❌ Пароль должен быть не менее 3 символов!', 'error');
+            authPassword.style.borderColor = '#ef4444';
+            setTimeout(() => authPassword.style.borderColor = '#3a3a55', 2000);
+            return;
+        }
+        
+        showAuthStatus('⏳ Проверка данных...', 'info');
+        authSubmitBtn.disabled = true;
+        authSubmitBtn.innerText = isAuthMode === 'login' ? '⏳ Вход...' : '⏳ Регистрация...';
+        
         try {
             if (isAuthMode === 'register') {
                 currentUser = await registerUser(name, password);
+                showAuthStatus('✅ Регистрация успешна!', 'success');
                 await addSystemMessage(`👋 ${currentUser.name} присоединился к чату!`);
             } else {
                 currentUser = await loginUser(name, password);
+                showAuthStatus('✅ Вход выполнен успешно!', 'success');
                 await addSystemMessage(`👋 ${currentUser.name} вернулся в чат!`);
             }
-            authModal.style.display = 'none';
-            applyAuthState();
+            setTimeout(() => {
+                authModal.style.display = 'none';
+                applyAuthState();
+            }, 1000);
         } catch (err) {
-            authModalError.innerText = err.message;
+            showAuthStatus(`❌ ${err.message}`, 'error');
+            if (authModalError) authModalError.innerText = err.message;
+        } finally {
+            authSubmitBtn.disabled = false;
+            authSubmitBtn.innerText = isAuthMode === 'login' ? 'Войти' : 'Зарегистрироваться';
         }
     }
     
@@ -502,6 +564,7 @@
         if (currentUser && firebaseReady) addSystemMessage(`👋 ${currentUser.name} покинул чат`);
         currentUser = null;
         applyAuthState();
+        renderMessages();
     }
     
     // Видео плеер
@@ -512,7 +575,6 @@
         videoEl.removeAttribute('src');
         videoEl.load();
         playerStatusSpan.innerText = '⏳ Подключение...';
-        
         if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
             videoEl.src = url;
             videoEl.play().catch(() => playerStatusSpan.innerText = '▶️ Нажмите для запуска');
@@ -552,23 +614,18 @@
         }
     }
     
-    // Подписка на сообщения Firebase
     function subscribeToMessages() {
         if (!firebaseReady) {
             messagesContainer.innerHTML = '<div class="message message-system"><div class="message-author">⚠️ Ошибка</div><div class="message-text">Чат недоступен. Проверьте подключение к интернету.</div></div>';
             return;
         }
-        if (messageListener) {
-            messagesRef.off('child_added', messageListener);
-        }
+        if (messageListener) messagesRef.off('child_added', messageListener);
         messages = [];
-        
         messageListener = messagesRef.orderByChild('timestamp').limitToLast(100).on('child_added', (snapshot) => {
             const msg = snapshot.val();
             if (!msg) return;
             msg.id = snapshot.key;
             messages.push(msg);
-            // Сортируем по времени
             messages.sort((a, b) => a.timestamp - b.timestamp);
             renderMessages();
         });
@@ -578,11 +635,7 @@
         const elem = playerSection;
         if (!document.fullscreenElement && !document.webkitFullscreenElement) {
             const requestMethod = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
-            if (requestMethod) {
-                requestMethod.call(elem).catch(err => {
-                    console.warn('Fullscreen error:', err);
-                });
-            }
+            if (requestMethod) requestMethod.call(elem).catch(err => console.warn('Fullscreen error:', err));
         } else {
             const exitMethod = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
             if (exitMethod) exitMethod.call(document);
@@ -597,10 +650,7 @@
     }
     
     async function sendAlert() {
-        if (!currentUser) {
-            openAuthModal('login');
-            return;
-        }
+        if (!currentUser) { openAuthModal('login'); return; }
         if (!firebaseReady) { alert('Чат недоступен'); return; }
         if (await isAlertBanned(currentUser.id)) return;
         const selectedText = cameraSelect.options[cameraSelect.selectedIndex]?.textContent || 'камере';
@@ -611,7 +661,7 @@
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
-        installBtn.style.display = 'block';
+        if (installBtn) installBtn.style.display = 'block';
         console.log('PWA installation prompt ready');
     });
     
@@ -620,27 +670,23 @@
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    installBtn.style.display = 'none';
-                }
+                if (outcome === 'accepted') installBtn.style.display = 'none';
                 deferredPrompt = null;
             }
         });
     }
     
     // Регистрация Service Worker
-   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/cameri.github.io/sw.js')
-            .then(reg => console.log('SW registered:', reg))
-            .catch(err => console.log('SW registration failed:', err));
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('SW registered:', reg))
+                .catch(err => console.log('SW registration failed:', err));
         });
     }
     
     // Запрос уведомлений
-    if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-    }
+    if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
     
     // Инициализация
     function init() {
@@ -659,16 +705,8 @@
         authSubmitBtn.addEventListener('click', handleAuthSubmit);
         demoLoginBtn.addEventListener('click', demoLogin);
         
-        // Кнопка выхода
-        const logoutBtn = document.createElement('button');
-        logoutBtn.innerText = '🚪 Выйти';
-        logoutBtn.style.cssText = 'background:#333; border:none; padding:4px 12px; border-radius:20px; margin-left:8px; font-size:11px; cursor:pointer; color:white;';
-        logoutBtn.onclick = logout;
-        const header = document.querySelector('.chat-header');
-        if (header && !header.querySelector('.logout-btn')) {
-            logoutBtn.className = 'logout-btn';
-            header.appendChild(logoutBtn);
-        }
+        if (closeAuthBtn) closeAuthBtn.addEventListener('click', closeAuthModal);
+        if (authModal) authModal.addEventListener('click', (e) => { if (e.target === authModal) closeAuthModal(); });
     }
     
     init();
