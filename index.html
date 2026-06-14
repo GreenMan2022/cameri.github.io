@@ -68,8 +68,6 @@
         .auth-input.error { border-color: #ef4444 !important; animation: shake 0.3s ease-in-out; }
         .auth-btn { width: 100%; background: #4c6ef5; border: none; padding: 14px; border-radius: 60px; font-weight: bold; color: white; font-size: 16px; margin-top: 12px; cursor: pointer; transition: 0.2s; }
         .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .demo-account { background: #2a2a3e; border-radius: 30px; padding: 12px; margin-top: 16px; font-size: 12px; cursor: pointer; border: 1px solid #4c6ef5; transition: 0.2s; }
-        .demo-account:hover { background: #3a3a55; }
         .switch-mode { margin-top: 16px; font-size: 13px; color: #8f9bb3; }
         .switch-mode span { color: #4c6ef5; cursor: pointer; text-decoration: underline; }
         .guest-badge { background: #2d2d44; padding: 4px 12px; border-radius: 20px; font-size: 11px; margin-left: 8px; }
@@ -139,9 +137,8 @@
         
         <input type="text" class="auth-input" id="authName" placeholder="Имя пользователя" autocomplete="off">
         <input type="password" class="auth-input" id="authPassword" placeholder="Пароль" autocomplete="off">
-        <div class="demo-account" id="demoLoginBtn"></div>
-        <button class="auth-btn" id="authSubmitBtn">Войти</button>
         
+        <button class="auth-btn" id="authSubmitBtn">Войти</button>
         
         <div class="switch-mode" id="switchMode">Нет аккаунта? <span id="switchToReg">Зарегистрироваться</span></div>
         <div id="authModalError" class="error-msg"></div>
@@ -258,7 +255,6 @@
     const authSubmitBtn = document.getElementById('authSubmitBtn');
     const switchModeDiv = document.getElementById('switchMode');
     const authModalError = document.getElementById('authModalError');
-    const demoLoginBtn = document.getElementById('demoLoginBtn');
     const installBtn = document.getElementById('installBtn');
     const closeAuthBtn = document.getElementById('closeAuthBtn');
     
@@ -284,10 +280,12 @@
     
     function showAuthStatus(message, type = 'info') {
         const statusDiv = document.getElementById('authStatus');
-        statusDiv.style.display = 'block';
-        statusDiv.className = `auth-status auth-status-${type}`;
-        statusDiv.innerHTML = message;
-        setTimeout(() => { if (statusDiv) statusDiv.style.display = 'none'; }, 3000);
+        if (statusDiv) {
+            statusDiv.style.display = 'block';
+            statusDiv.className = `auth-status auth-status-${type}`;
+            statusDiv.innerHTML = message;
+            setTimeout(() => { if (statusDiv) statusDiv.style.display = 'none'; }, 3000);
+        }
     }
     
     function closeAuthModal() {
@@ -393,6 +391,12 @@
     // Авторизация
     async function registerUser(name, password) {
         if (!firebaseReady) throw new Error('Чат недоступен');
+        
+        // Запрещаем регистрацию с именем demo
+        if (name.toLowerCase() === 'demo') {
+            throw new Error('Имя "demo" зарезервировано, выберите другое');
+        }
+        
         const nameLower = name.toLowerCase();
         const snapshot = await usersRef.orderByChild('nameLower').equalTo(nameLower).once('value');
         if (snapshot.exists()) throw new Error('Пользователь уже существует');
@@ -403,41 +407,18 @@
     
     async function loginUser(name, password) {
         if (!firebaseReady) throw new Error('Чат недоступен');
+        
+        // Запрещаем вход под demo
+        if (name.toLowerCase() === 'demo') {
+            throw new Error('Демо-аккаунт отключён. Зарегистрируйтесь заново.');
+        }
+        
         const snapshot = await usersRef.orderByChild('nameLower').equalTo(name.toLowerCase()).once('value');
         if (!snapshot.exists()) throw new Error('Пользователь не найден');
         let userData = null, userId = null;
         snapshot.forEach(child => { userData = child.val(); userId = child.key; });
         if (simpleHash(password) !== userData.passwordHash) throw new Error('Неверный пароль');
         return { id: userId, name: userData.name };
-    }
-    
-    async function demoLogin() {
-        if (!firebaseReady) { showAuthStatus('Чат недоступен, попробуйте позже', 'error'); return; }
-        showAuthStatus('⏳ Вход через демо-аккаунт...', 'info');
-        try {
-            const demoName = 'demo';
-            const demoPassword = 'demo123';
-            const nameLower = demoName.toLowerCase();
-            const snapshot = await usersRef.orderByChild('nameLower').equalTo(nameLower).once('value');
-            if (!snapshot.exists()) {
-                const userId = 'demo_' + Date.now();
-                await usersRef.child(userId).set({ name: demoName, nameLower, passwordHash: simpleHash(demoPassword), createdAt: Date.now() });
-                currentUser = { id: userId, name: demoName };
-            } else {
-                let userId = null;
-                snapshot.forEach(child => { userId = child.key; });
-                currentUser = { id: userId, name: demoName };
-            }
-            showAuthStatus('✅ Вход через демо-аккаунт выполнен!', 'success');
-            setTimeout(() => {
-                if (authModal) authModal.style.display = 'none';
-                applyAuthState();
-                addSystemMessage(`👋 ${currentUser.name} присоединился к чату!`);
-            }, 1000);
-        } catch (err) {
-            showAuthStatus(`❌ Ошибка: ${err.message}`, 'error');
-            if (authModalError) authModalError.innerText = err.message;
-        }
     }
     
     function applyAuthState() {
@@ -512,30 +493,32 @@
         
         if (!name || !password) {
             showAuthStatus('❌ Заполните все поля!', 'error');
-            if (!name) authName.style.borderColor = '#ef4444';
-            if (!password) authPassword.style.borderColor = '#ef4444';
+            if (!name && authName) authName.style.borderColor = '#ef4444';
+            if (!password && authPassword) authPassword.style.borderColor = '#ef4444';
             setTimeout(() => {
-                authName.style.borderColor = '#3a3a55';
-                authPassword.style.borderColor = '#3a3a55';
+                if (authName) authName.style.borderColor = '#3a3a55';
+                if (authPassword) authPassword.style.borderColor = '#3a3a55';
             }, 2000);
             return;
         }
         if (name.length < 3) {
             showAuthStatus('❌ Имя должно быть не менее 3 символов!', 'error');
-            authName.style.borderColor = '#ef4444';
-            setTimeout(() => authName.style.borderColor = '#3a3a55', 2000);
+            if (authName) authName.style.borderColor = '#ef4444';
+            setTimeout(() => { if (authName) authName.style.borderColor = '#3a3a55'; }, 2000);
             return;
         }
         if (password.length < 3) {
             showAuthStatus('❌ Пароль должен быть не менее 3 символов!', 'error');
-            authPassword.style.borderColor = '#ef4444';
-            setTimeout(() => authPassword.style.borderColor = '#3a3a55', 2000);
+            if (authPassword) authPassword.style.borderColor = '#ef4444';
+            setTimeout(() => { if (authPassword) authPassword.style.borderColor = '#3a3a55'; }, 2000);
             return;
         }
         
         showAuthStatus('⏳ Проверка данных...', 'info');
-        authSubmitBtn.disabled = true;
-        authSubmitBtn.innerText = isAuthMode === 'login' ? '⏳ Вход...' : '⏳ Регистрация...';
+        if (authSubmitBtn) {
+            authSubmitBtn.disabled = true;
+            authSubmitBtn.innerText = isAuthMode === 'login' ? '⏳ Вход...' : '⏳ Регистрация...';
+        }
         
         try {
             if (isAuthMode === 'register') {
@@ -548,15 +531,17 @@
                 await addSystemMessage(`👋 ${currentUser.name} вернулся в чат!`);
             }
             setTimeout(() => {
-                authModal.style.display = 'none';
+                if (authModal) authModal.style.display = 'none';
                 applyAuthState();
             }, 1000);
         } catch (err) {
             showAuthStatus(`❌ ${err.message}`, 'error');
             if (authModalError) authModalError.innerText = err.message;
         } finally {
-            authSubmitBtn.disabled = false;
-            authSubmitBtn.innerText = isAuthMode === 'login' ? 'Войти' : 'Зарегистрироваться';
+            if (authSubmitBtn) {
+                authSubmitBtn.disabled = false;
+                authSubmitBtn.innerText = isAuthMode === 'login' ? 'Войти' : 'Зарегистрироваться';
+            }
         }
     }
     
@@ -605,55 +590,33 @@
         if (cameras.length) loadCameraStream(cameras[0].url);
         cameraSelect.addEventListener('change', () => loadCameraStream(cameraSelect.value));
     }
-
+    
     function switchToCameraByName(cameraName) {
         console.log('Переход на камеру:', cameraName);
         
-        // Очищаем название от эмодзи и лишних символов для поиска
+        // Очищаем название от эмодзи и лишних символов
         let searchName = cameraName;
-        // Удаляем эмодзи камеры (📹) если есть
         searchName = searchName.replace(/^[📹🌆🏙️🚨⚠️🔴]\s*/, '');
-        // Удаляем номер с точкой в начале (например "1. ")
         searchName = searchName.replace(/^\d+\.\s*/, '');
         
-        console.log('Поиск по имени:', searchName);
-        
-        // Ищем камеру (по частичному совпадению, т.к. названия могут отличаться)
+        // Ищем камеру
         let camera = cameras.find(c => {
-            // Точное совпадение
-            if (c.name === cameraName) return true;
-            // Совпадение после удаления номера
             const cleanCamName = c.name.replace(/^\d+\.\s*/, '');
-            if (cleanCamName === searchName) return true;
-            // Частичное совпадение (содержит)
-            if (cleanCamName.includes(searchName) || searchName.includes(cleanCamName)) return true;
-            return false;
+            return cleanCamName === searchName || c.name.includes(searchName) || searchName.includes(cleanCamName);
         });
         
-        // Если не нашли, пробуем поискать по первому вхождению в названии
-        if (!camera) {
-            camera = cameras.find(c => c.name.toLowerCase().includes(searchName.toLowerCase()));
-        }
-        
         if (camera) {
-            console.log('Найдена камера:', camera.name);
             cameraSelect.value = camera.url;
             loadCameraStream(camera.url);
-            // Показываем уведомление о переключении
             if (currentUser) {
                 addSystemMessage(`📡 ${currentUser.name} переключился на камеру: ${camera.name}`);
             }
-            // Прокручиваем к списку камер (опционально)
             cameraSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } else {
             console.warn('Камера не найдена:', cameraName);
-            // Пробуем найти среди всех названий
-            const allNames = cameras.map(c => c.name).join(', ');
-            console.log('Доступные камеры:', allNames);
-            alert(`Камера "${cameraName}" не найдена. Попробуйте выбрать вручную из списка.`);
         }
     }
-
+    
     function subscribeToMessages() {
         if (!firebaseReady) {
             messagesContainer.innerHTML = '<div class="message message-system"><div class="message-author">⚠️ Ошибка</div><div class="message-text">Чат недоступен. Проверьте подключение к интернету.</div></div>';
@@ -734,16 +697,17 @@
         subscribeToMessages();
         applyAuthState();
         
-        sendBtn.addEventListener('click', sendMessage);
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && currentUser) sendMessage();
-            else if (e.key === 'Enter' && !currentUser) openAuthModal('login');
-        });
-        eventAlertBtn.addEventListener('click', sendAlert);
-        fullscreenBtn.addEventListener('click', toggleFullscreen);
-        loginPromptBtn.addEventListener('click', () => openAuthModal('login'));
-        authSubmitBtn.addEventListener('click', handleAuthSubmit);
-        demoLoginBtn.addEventListener('click', demoLogin);
+        if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+        if (chatInput) {
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && currentUser) sendMessage();
+                else if (e.key === 'Enter' && !currentUser) openAuthModal('login');
+            });
+        }
+        if (eventAlertBtn) eventAlertBtn.addEventListener('click', sendAlert);
+        if (fullscreenBtn) fullscreenBtn.addEventListener('click', toggleFullscreen);
+        if (loginPromptBtn) loginPromptBtn.addEventListener('click', () => openAuthModal('login'));
+        if (authSubmitBtn) authSubmitBtn.addEventListener('click', handleAuthSubmit);
         
         if (closeAuthBtn) closeAuthBtn.addEventListener('click', closeAuthModal);
         if (authModal) authModal.addEventListener('click', (e) => { if (e.target === authModal) closeAuthModal(); });
