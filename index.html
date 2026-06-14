@@ -605,15 +605,55 @@
         if (cameras.length) loadCameraStream(cameras[0].url);
         cameraSelect.addEventListener('change', () => loadCameraStream(cameraSelect.value));
     }
-    
+
     function switchToCameraByName(cameraName) {
-        const camera = cameras.find(c => c.name === cameraName);
+        console.log('Переход на камеру:', cameraName);
+        
+        // Очищаем название от эмодзи и лишних символов для поиска
+        let searchName = cameraName;
+        // Удаляем эмодзи камеры (📹) если есть
+        searchName = searchName.replace(/^[📹🌆🏙️🚨⚠️🔴]\s*/, '');
+        // Удаляем номер с точкой в начале (например "1. ")
+        searchName = searchName.replace(/^\d+\.\s*/, '');
+        
+        console.log('Поиск по имени:', searchName);
+        
+        // Ищем камеру (по частичному совпадению, т.к. названия могут отличаться)
+        let camera = cameras.find(c => {
+            // Точное совпадение
+            if (c.name === cameraName) return true;
+            // Совпадение после удаления номера
+            const cleanCamName = c.name.replace(/^\d+\.\s*/, '');
+            if (cleanCamName === searchName) return true;
+            // Частичное совпадение (содержит)
+            if (cleanCamName.includes(searchName) || searchName.includes(cleanCamName)) return true;
+            return false;
+        });
+        
+        // Если не нашли, пробуем поискать по первому вхождению в названии
+        if (!camera) {
+            camera = cameras.find(c => c.name.toLowerCase().includes(searchName.toLowerCase()));
+        }
+        
         if (camera) {
+            console.log('Найдена камера:', camera.name);
             cameraSelect.value = camera.url;
             loadCameraStream(camera.url);
+            // Показываем уведомление о переключении
+            if (currentUser) {
+                addSystemMessage(`📡 ${currentUser.name} переключился на камеру: ${camera.name}`);
+            }
+            // Прокручиваем к списку камер (опционально)
+            cameraSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            console.warn('Камера не найдена:', cameraName);
+            // Пробуем найти среди всех названий
+            const allNames = cameras.map(c => c.name).join(', ');
+            console.log('Доступные камеры:', allNames);
+            alert(`Камера "${cameraName}" не найдена. Попробуйте выбрать вручную из списка.`);
         }
     }
-    
+
     function subscribeToMessages() {
         if (!firebaseReady) {
             messagesContainer.innerHTML = '<div class="message message-system"><div class="message-author">⚠️ Ошибка</div><div class="message-text">Чат недоступен. Проверьте подключение к интернету.</div></div>';
