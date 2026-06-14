@@ -1,5 +1,0 @@
-services:
-  - type: web
-    name: cameripvk-web
-    runtime: static
-    publishPath: ./
