@@ -118,11 +118,19 @@
 
 <div class="auth-modal" id="authModal">
     <div class="auth-card">
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+            <button id="closeAuthBtn" style="background: none; border: none; color: #8f9bb3; font-size: 24px; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">✕</button>
+        </div>
         <h2 id="modalTitle">🔐 Вход</h2>
         <p id="modalDesc">Введите имя и пароль</p>
+        
+        <div id="authStatus" style="margin-bottom: 12px; padding: 8px; border-radius: 12px; font-size: 13px; display: none;"></div>
+        
         <input type="text" class="auth-input" id="authName" placeholder="Имя пользователя" autocomplete="off">
         <input type="password" class="auth-input" id="authPassword" placeholder="Пароль" autocomplete="off">
+        
         <button class="auth-btn" id="authSubmitBtn">Войти</button>
+        
         <div class="demo-account" id="demoLoginBtn">🎮 Демо-аккаунт: demo / demo123</div>
         <div class="switch-mode" id="switchMode">Нет аккаунта? <span id="switchToReg">Зарегистрироваться</span></div>
         <div id="authModalError" class="error-msg"></div>
