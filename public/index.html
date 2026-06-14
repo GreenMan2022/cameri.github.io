@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#0a0a1a">
-    <title>CamChat | 47 камер + общий чат (Firebase)</title>
+    <title>CamChat | 47 камер видеонаблюдения</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
@@ -92,7 +91,7 @@
 </div>
 
 <script>
-    // ==================== FIREBASE КОНФИГ (БЕСПЛАТНАЯ ДЕМО-БАЗА) ====================
+    // ==================== FIREBASE КОНФИГ ====================
     const firebaseConfig = {
         apiKey: "AIzaSyB0oVgkYq4eIqG4ZsKWpK9vWmnMq5tLbGM",
         authDomain: "pwa-camchat.firebaseapp.com",
@@ -110,7 +109,7 @@
     const bannedUsersRef = database.ref('banned_alerts');
     const reportsRef = database.ref('spam_reports');
     
-    // ==================== СПИСОК КАМЕР ====================
+    // ==================== СПИСОК КАМЕР (47 ШТ) ====================
     const cameras = [
         { id: 1, name: "Перекрёсток Емлина-Ленина", url: "https://video.interra.ru/glaz.naroda.38-e60a533a34/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAHz8AV5bAgwb_bq4Q9BexUA3ze2E" },
         { id: 2, name: "Перекрёсток Ленина-Космонавтов", url: "https://video.interra.ru/glaz.naroda.69-88107b23ac/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAABMSk4SEGVZtDQ81gwVqeUBRBIXE" },
