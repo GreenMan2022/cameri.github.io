@@ -1,119 +1,603 @@
-const CACHE_NAME = 'camchat-v1.0.0';
-const urlsToCache = [
-    '/',
-    '/index.html',
-    '/manifest.json',
-    'https://cdn.jsdelivr.net/npm/hls.js@latest',
-    'https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js',
-    'https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js'
-];
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0a0a1a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CamChat">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%234c6ef5'/%3E%3Ccircle cx='50' cy='40' r='18' fill='white'/%3E%3C/svg%3E">
+    <title>Pervouralsk CamChat | 47 камер видеонаблюдения</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: #0f0f1a; color: #eef2ff; padding-bottom: env(safe-area-inset-bottom); }
+        .app { max-width: 700px; margin: 0 auto; background: #0f0f1a; min-height: 100vh; display: flex; flex-direction: column; }
+        
+        /* Player */
+        .player-section { background: #000; position: relative; width: 100%; aspect-ratio: 16/9; background-color: #1a1a2e; }
+        video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+        .player-status { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,0.65); backdrop-filter: blur(6px); padding: 4px 12px; border-radius: 24px; font-size: 12px; z-index: 2; }
+        .fullscreen-btn { position: absolute; bottom: 12px; right: 12px; background: rgba(0,0,0,0.7); border: none; width: 40px; height: 40px; border-radius: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; color: white; font-size: 20px; }
+        
+        /* Actions */
+        .action-bar { display: flex; margin: 12px 16px 8px; gap: 12px; }
+        .event-alert-btn { flex: 1; background: linear-gradient(135deg, #dc2626, #b91c1c); border: none; padding: 12px; border-radius: 40px; font-weight: 700; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: 0.2s; }
+        .event-alert-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        /* Camera selector */
+        .camera-selector { margin: 0 16px 12px; }
+        .select-label { font-size: 14px; margin-bottom: 6px; color: #b9c3e6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+        select { width: 100%; padding: 14px 16px; background: #1e1e2f; border: 1px solid #2d2d42; border-radius: 20px; color: #f0f3ff; font-size: 14px; cursor: pointer; }
+        select option { padding: 8px; }
+        
+        /* Chat */
+        .chat-container { flex: 1; margin: 8px 16px 20px; background: #12121c; border-radius: 28px; display: flex; flex-direction: column; border: 1px solid #28283a; overflow: hidden; }
+        .chat-header { padding: 14px 18px; background: #1a1a28; display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+        .login-prompt { background: #2c3e66; padding: 6px 12px; border-radius: 30px; font-size: 12px; cursor: pointer; }
+        .install-prompt { background: #4c6ef5; padding: 6px 12px; border-radius: 30px; font-size: 11px; cursor: pointer; margin-left: 8px; }
+        .messages-area { min-height: 280px; max-height: 320px; overflow-y: auto; padding: 14px 12px; display: flex; flex-direction: column; gap: 12px; }
+        .message { background: #1f1f2e; padding: 10px 14px; border-radius: 20px; max-width: 100%; word-wrap: break-word; }
+        .message-self { background: #2c3e66; align-self: flex-end; max-width: 92%; }
+        .message-alert { background: #7c2d2d; border-left: 4px solid #ffaa44; }
+        .message-system { background: #2a2a3a; border-left: 4px solid #4c6ef5; }
+        .message-author { font-weight: 700; font-size: 13px; margin-bottom: 4px; color: #bfd6ff; }
+        .message-text { font-size: 14px; }
+        .message-time { font-size: 9px; color: #8f9bb3; margin-top: 6px; text-align: right; }
+        .alert-actions { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+        .alert-btn { background: rgba(255,255,255,0.1); border: none; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; color: white; }
+        .alert-btn.report-btn { background: #dc2626; }
+        .alert-btn.switch-cam-btn { background: #4c6ef5; }
+        .input-area { display: flex; gap: 10px; padding: 12px 14px; background: #11111c; border-top: 1px solid #252539; }
+        .chat-input { flex: 1; background: #252536; border: none; padding: 12px 18px; border-radius: 40px; color: white; }
+        .chat-input:disabled { opacity: 0.5; }
+        .send-btn { background: #4c6ef5; border: none; width: 46px; border-radius: 46px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; color: white; }
+        .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .spam-warning { font-size: 11px; color: #ffaa66; padding: 6px 14px; text-align: center; background: #1a1a28; }
+        
+        /* Auth modal */
+        .auth-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); backdrop-filter: blur(12px); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .auth-card { background: #1a1a2e; border-radius: 40px; padding: 32px 24px; width: 100%; max-width: 340px; text-align: center; border: 1px solid #2d2d50; }
+        .auth-card h2 { margin-bottom: 8px; }
+        .auth-input { width: 100%; padding: 14px 18px; margin: 8px 0; background: #25253a; border: 1px solid #3a3a55; border-radius: 60px; color: white; font-size: 16px; }
+        .auth-btn { width: 100%; background: #4c6ef5; border: none; padding: 14px; border-radius: 60px; font-weight: bold; color: white; font-size: 16px; margin-top: 12px; cursor: pointer; }
+        .demo-account { background: #2a2a3e; border-radius: 30px; padding: 12px; margin-top: 16px; font-size: 12px; cursor: pointer; border: 1px solid #4c6ef5; }
+        .switch-mode { margin-top: 16px; font-size: 13px; color: #8f9bb3; }
+        .switch-mode span { color: #4c6ef5; cursor: pointer; text-decoration: underline; }
+        .guest-badge { background: #2d2d44; padding: 4px 12px; border-radius: 20px; font-size: 11px; margin-left: 8px; }
+        .error-msg { color: #ff8888; font-size: 12px; margin-top: 10px; }
+        .offline-badge { background: #ffaa44; color: #1a1a2e; padding: 2px 8px; border-radius: 12px; font-size: 10px; margin-left: 8px; }
+        .cam-count { background: #4c6ef5; padding: 2px 8px; border-radius: 20px; font-size: 11px; }
+        
+        @media (max-width: 480px) { .messages-area { min-height: 240px; } }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="player-section" id="playerSection">
+        <video id="webcamVideo" playsinline autoplay muted></video>
+        <div class="player-status" id="playerStatus">⏳ Загрузка...</div>
+        <button class="fullscreen-btn" id="fullscreenBtn">⛶</button>
+    </div>
+    <div class="action-bar">
+        <button class="event-alert-btn" id="eventAlertBtn">⚠️ Оповестить всех</button>
+    </div>
+    <div class="camera-selector">
+        <div class="select-label">
+            📡 Выберите камеру
+            <span class="cam-count" id="camCount"></span>
+            <span class="guest-badge" id="userStatusBadge">👁️ гость</span>
+        </div>
+        <select id="cameraSelect"></select>
+    </div>
+    <div class="chat-container">
+        <div class="chat-header">
+            <span>💬 Общий чат (все видят)</span>
+            <div style="display: flex; gap: 8px;">
+                <div class="install-prompt" id="installBtn" style="display:none;">📲 Установить</div>
+                <div class="login-prompt" id="loginPromptBtn">🔑 Войти</div>
+            </div>
+        </div>
+        <div class="messages-area" id="messagesArea"></div>
+        <div class="input-area">
+            <input type="text" class="chat-input" id="chatInput" placeholder="Войдите, чтобы писать..." disabled>
+            <button class="send-btn" id="sendBtn" disabled>➤</button>
+        </div>
+        <div id="spamWarning" class="spam-warning"></div>
+    </div>
+</div>
 
-// Установка и кэширование
-self.addEventListener('install', event => {
-    console.log('[SW] Установка');
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => {
-                console.log('[SW] Кэширование ресурсов');
-                return cache.addAll(urlsToCache);
-            })
-            .catch(err => console.error('[SW] Ошибка кэширования:', err))
-    );
-    self.skipWaiting();
-});
+<div class="auth-modal" id="authModal">
+    <div class="auth-card">
+        <h2 id="modalTitle">🔐 Вход</h2>
+        <p id="modalDesc">Введите имя и пароль</p>
+        <input type="text" class="auth-input" id="authName" placeholder="Имя пользователя">
+        <input type="password" class="auth-input" id="authPassword" placeholder="Пароль">
+        <button class="auth-btn" id="authSubmitBtn">Войти</button>
+        <div class="demo-account" id="demoLoginBtn">🎮 Демо-аккаунт: demo / demo123</div>
+        <div class="switch-mode" id="switchMode">Нет аккаунта? <span id="switchToReg">Зарегистрироваться</span></div>
+        <div id="authModalError" class="error-msg"></div>
+    </div>
+</div>
 
-// Активация и очистка старого кэша
-self.addEventListener('activate', event => {
-    console.log('[SW] Активация');
-    event.waitUntil(
-        caches.keys().then(cacheNames => {
-            return Promise.all(
-                cacheNames.map(cacheName => {
-                    if (cacheName !== CACHE_NAME) {
-                        console.log('[SW] Удаление старого кэша:', cacheName);
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        })
-    );
-    self.clients.claim();
-});
-
-// Стратегия: сначала сеть, при ошибке - кэш
-self.addEventListener('fetch', event => {
-    const url = new URL(event.request.url);
+<script>
+    // ==================== FIREBASE КОНФИГ (ВАШИ ДАННЫЕ) ====================
+    const firebaseConfig = {
+        apiKey: "AIzaSyBCLe4cmLQ6BkzBSE9Wkc1BRFp_gqh4sPE",
+        authDomain: "pervouralsk-1527512006778.firebaseapp.com",
+        databaseURL: "https://pervouralsk-1527512006778.firebaseio.com",
+        projectId: "pervouralsk-1527512006778",
+        storageBucket: "pervouralsk-1527512006778.firebasestorage.app",
+        messagingSenderId: "859305403936",
+        appId: "1:859305403936:web:473a460bac669364c77e45"
+    };
     
-    // Firebase и HLS не кэшируем (всегда из сети)
-    if (url.hostname.includes('googleapis.com') || 
-        url.hostname.includes('firebaseio.com') ||
-        url.hostname.includes('gstatic.com') ||
-        url.hostname.includes('cdn.jsdelivr.net') ||
-        url.pathname.includes('.m3u8') ||
-        url.pathname.includes('.ts')) {
-        event.respondWith(fetch(event.request));
-        return;
+    // Инициализация Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const messagesRef = database.ref('chat_messages');
+    const usersRef = database.ref('users');
+    const bannedUsersRef = database.ref('banned_alerts');
+    const reportsRef = database.ref('spam_reports');
+    
+    // ==================== СПИСОК КАМЕР (47 ШТ) ====================
+    const cameras = [
+        { id: 1, name: "Перекрёсток Емлина-Ленина", url: "https://video.interra.ru/glaz.naroda.38-e60a533a34/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAHz8AV5bAgwb_bq4Q9BexUA3ze2E" },
+        { id: 2, name: "Перекрёсток Ленина-Космонавтов", url: "https://video.interra.ru/glaz.naroda.69-88107b23ac/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAABMSk4SEGVZtDQ81gwVqeUBRBIXE" },
+        { id: 3, name: "Перекрёсток Ленина-Космонавтов", url: "https://video.interra.ru/glaz.naroda.7-719cef05e8/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAGSqutK7EdeiLrB7rOERcX3Wts-q" },
+        { id: 4, name: "Проспект Космонавтов, д. 19", url: "https://video.interra.ru/glaz.naroda.27-f7e81f7bce/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAO8-2_rSX0V2qDVJqjDxFP68eVEC" },
+        { id: 5, name: "Перекрёсток у ТЦ МАРС", url: "https://video.interra.ru/glaz.naroda.9-ec155e8f81/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAABayd-WjYHvATlrPCoSRCB9Qhp7t" },
+        { id: 6, name: "Перекрёсток Ильича-Космонавтов", url: "https://video.interra.ru/glaz.naroda.14-e22ee71ce0/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAFIbXU9oIOtGLTqz6DiX5-QogJFE" },
+        { id: 7, name: "Набережная пруда", url: "https://video.interra.ru/glaz.naroda.25-4cc98d0789/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAHRsHgp_0qihUk_HBzu17ck8D_Mh" },
+        { id: 8, name: "Перекрёсток Ватутина-Советская", url: "https://video.interra.ru/glaz.naroda.21-19bcd33f7f/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAACI80V-ezRrkIeJGCOuiLqMO3L1t" },
+        { id: 9, name: "Перекрёсток Ватутина-Малышева", url: "https://video.interra.ru/glaz.naroda.29-1c63155041/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAAA7leZJfczXfTUxqdcWm1UMTIYE" },
+        { id: 10, name: "Площадь Победы", url: "https://video.interra.ru/glaz.naroda.8-c53ad07719/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAMLD72VML0zTKX93CIDenlWj9dKt" },
+        { id: 11, name: "Площадь Победы", url: "https://video.interra.ru/glaz.naroda.6-e95ca11965/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAERg-Eq8wmNvtnbw14DBkGUbvN4L" },
+        { id: 12, name: "Вход в парк", url: "https://video.interra.ru/glaz.naroda.49-8793eb0dfd/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAGjW16v09aaEopwcTjZLvfXQJM6m" },
+        { id: 13, name: "Перекрёсток Ватутина-Герцена", url: "https://video.interra.ru/glaz.naroda.46-b14600392b/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAHpTPCtN6QpR7RIyY4vRpTA9_ny7" },
+        { id: 14, name: "Перекрёсток Ватутина-Папанинцев", url: "https://video.interra.ru/glaz.naroda.47-f3ebf6b95c/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAJwfkzSpW2cCjiundMLGdO1LI5XW" },
+        { id: 15, name: "Перекрёсток Ватутина-Володарского", url: "https://video.interra.ru/glaz.naroda.48-96160aaa09/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAJJQBHdEhiU9vJNpfTYkNKLzmstk" },
+        { id: 16, name: "Перекрёсток Ватутина-Гагарина", url: "https://video.interra.ru/glaz.naroda.33-fad92591aa/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAIa8SSqK1QMAsi8pjhoKshKM6xE8" },
+        { id: 17, name: "Перекрёсток Чкалова-Ильича", url: "https://video.interra.ru/glaz.naroda.3-50c57ffd3e/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAEzXxV8plI46SBNwkpSd2yhh2ukr" },
+        { id: 18, name: "Перекрёсток Чкалова-Герцена", url: "https://video.interra.ru/glaz.naroda.45-b9b0186773/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAKOgh_KQet820Aojm4hVAre5zr_Y" },
+        { id: 19, name: "Перекрёсток Чкалова-Папанинцев", url: "https://video.interra.ru/glaz.naroda.61-93ff24e89c/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAOIKxHk6pLXSg7uzNTYQiziq1vv0" },
+        { id: 20, name: "Перекрёсток Ленина-Береговая", url: "https://video.interra.ru/glaz.naroda.45-b9b0186773/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAKOgh_KQet820Aojm4hVAre5zr_Y" },
+        { id: 21, name: "Перекрёсток Ленина-Чекистов", url: "https://video.interra.ru/glaz.naroda.4-f9c1801660/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAC6_-QWK7Oa_TX1NSSJE_HeyndsS" },
+        { id: 22, name: "Перекрёсток Ленина-Ильича", url: "https://video.interra.ru/glaz.naroda.65-9259fce158/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAD4jfac0sy8Ay91TN-JfzCG_2kIT" },
+        { id: 23, name: "Перекрёсток Ленина-Ильича-Трубников", url: "https://video.interra.ru/glaz.naroda.37-7fdf4aae90/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAMtG4TISG-aM51pFWZXAzETyJjBk" },
+        { id: 24, name: "Перекрёсток Трубников-Герцена", url: "https://video.interra.ru/glaz.naroda.28-375f2cc29e/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAIoZ6VpaxgZ4XY5ziRR2M3WlfZ8G" },
+        { id: 25, name: "Перекрёсток Трубников-Папанинцев", url: "https://video.interra.ru/glaz.naroda.30-9c8902aa36/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAJBCgbnYpxS3mek33e5gRgkpUovi" },
+        { id: 26, name: "Перекрёсток Трубников-Школьная", url: "https://video.interra.ru/glaz.naroda.30-9c8902aa36/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAJBCgbnYpxS3mek33e5gRgkpUovi" },
+        { id: 27, name: "Перекрёсток Трубников-Гагарина", url: "https://video.interra.ru/glaz.naroda.30-9c8902aa36/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAJBCgbnYpxS3mek33e5gRgkpUovi" },
+        { id: 28, name: "П. Хромпик, круговой перекрёсток", url: "https://video.interra.ru/glaz.naroda.30-9c8902aa36/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAJBCgbnYpxS3mek33e5gRgkpUovi" },
+        { id: 29, name: "Городок на Береговой 20", url: "https://video.interra.ru/glaz.naroda.30-9c8902aa36/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAJBCgbnYpxS3mek33e5gRgkpUovi" },
+        { id: 30, name: "Перекрёсток Данилова-Чекистов", url: "https://video.interra.ru/glaz.naroda.41-689af1f0f5/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAIk2Oi2v6utpI-VnnCkOoTecKOBo" },
+        { id: 31, name: "Перекрёсток Данилова-Краснодонцев", url: "https://video.interra.ru/glaz.naroda.40-70e440be67/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAHiw7qBs2t__8Eh8QuInL9_7TbC9" },
+        { id: 32, name: "Перекрёсток Строителей-Громовой", url: "https://video.interra.ru/glaz.naroda.18-5d5aa2fe13/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAO_LrHz5W9KkkYQHjF2usKCNFkq2" },
+        { id: 33, name: "Перекрёсток Строителей-Краснодонцев", url: "https://video.interra.ru/glaz.naroda.39-1360aa09c3/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAALTmT7aXbt8EQvVoTSh6S6o0Yq3h" },
+        { id: 34, name: "Перекрёсток Вайнера-Береговая", url: "https://video.interra.ru/glaz.naroda.35-34558b3c59/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAITInK__BfhI-SNrKd4BoSBIdiy6" },
+        { id: 35, name: "Перекрёсток Вайнера-Кольцевая", url: "https://video.interra.ru/glaz.naroda.13-8ca559e5bd/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAHnTWKNTMOM5rCvtiNGNm0myL4_i" },
+        { id: 36, name: "Перекрёсток Вайнера-Громовой", url: "https://video.interra.ru/glaz.naroda.31-eea5bf8987/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAHOknDMgtjdyik3MonZ0V0XHxttc" },
+        { id: 37, name: "Перекрёсток Вайнера-Краснодонцев", url: "https://video.interra.ru/glaz.naroda.34-2e2f52f277/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAKoTLdlQ49cUdhpTIjMbEaD81ObK" },
+        { id: 38, name: "Ул. Вайнера, выезд от магазина СОМ", url: "https://video.interra.ru/glaz.naroda.32-22975f2b2d/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAK1URRjrl3ZVkEB2-TSQx9RWcfJ4" },
+        { id: 39, name: "Рынок", url: "https://video.interra.ru/glaz.naroda.15-f1aebe0b86/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAE6FGwzY-dN05B6KQEcPQwJRO-If" },
+        { id: 40, name: "Перекрёсток Вайнера-Ильича", url: "https://video.interra.ru/glaz.naroda.36-f4d80dd3cf/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAADTcF098EjzS7rQiDF-YOCAglQAS" },
+        { id: 41, name: "Перекрёсток на улице Сантехизделий вблизи дома №28", url: "https://video.interra.ru/glaz.naroda.68-470580056f/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAAIZMKpITECzm_bsql7jK8SaZjKw" },
+        { id: 42, name: "П. Динас, круговой перекрёсток", url: "https://video.interra.ru/glaz.naroda.11-067f37bc81/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAPHda2mNPXsjZy7VEGak5e4sOBnT" },
+        { id: 43, name: "Перекрёсток Ильича - 50 лет СССР", url: "https://video.interra.ru/glaz.naroda.62-60daf9cda0/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAACVZ-BLGA3sQS9m7AZXB5Nqz6BUm" },
+        { id: 44, name: "П. Динас, площадь", url: "https://video.interra.ru/glaz.naroda.62-60daf9cda0/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAACVZ-BLGA3sQS9m7AZXB5Nqz6BUm" },
+        { id: 45, name: "Перекрёсток Талица - Сакко и Ванцетти", url: "https://video.interra.ru/glaz.naroda.17-49dca37237/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAH29iQD9IXRCc-cgdRIXudyocrpu" },
+        { id: 46, name: "Перекрёсток Энгельса-Фурманова-Бурильщиков", url: "https://video.interra.ru/glaz.naroda.42-097dc52569/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAA_mpHJ8uHP2H9Q1Zbhd5732id8N" },
+        { id: 47, name: "Перекрёсток Коммунистическая-Ленина", url: "https://video2.interra.ru/glaz.naroda.504-d8b2dcde14/tracks-v1/mono.m3u8?token=3.9CzUU5u-AAAAAAAAAEsAAAAAAAAAAOnSd-VAJBBftYpJxGc2KU8-Mcx2" }
+    ];
+    
+    // ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
+    let currentUser = null;
+    let hls = null;
+    let currentStreamUrl = '';
+    let isAuthMode = 'login';
+    let messageListener = null;
+    let deferredPrompt;
+    
+    // DOM элементы
+    const videoEl = document.getElementById('webcamVideo');
+    const playerSection = document.getElementById('playerSection');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const cameraSelect = document.getElementById('cameraSelect');
+    const playerStatusSpan = document.getElementById('playerStatus');
+    const messagesContainer = document.getElementById('messagesArea');
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const eventAlertBtn = document.getElementById('eventAlertBtn');
+    const userStatusBadge = document.getElementById('userStatusBadge');
+    const loginPromptBtn = document.getElementById('loginPromptBtn');
+    const authModal = document.getElementById('authModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalDesc = document.getElementById('modalDesc');
+    const authName = document.getElementById('authName');
+    const authPassword = document.getElementById('authPassword');
+    const authSubmitBtn = document.getElementById('authSubmitBtn');
+    const switchModeDiv = document.getElementById('switchMode');
+    const authModalError = document.getElementById('authModalError');
+    const demoLoginBtn = document.getElementById('demoLoginBtn');
+    const installBtn = document.getElementById('installBtn');
+    
+    // Вспомогательные функции
+    function getFormattedTime(timestamp) {
+        const date = timestamp ? new Date(timestamp) : new Date();
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
     
-    // Для статики: сначала сеть, при ошибке - кэш
-    event.respondWith(
-        fetch(event.request)
-            .then(response => {
-                // Кэшируем успешные ответы
-                if (response.status === 200 && event.request.method === 'GET') {
-                    const responseClone = response.clone();
-                    caches.open(CACHE_NAME).then(cache => {
-                        cache.put(event.request, responseClone);
-                    });
-                }
-                return response;
-            })
-            .catch(() => {
-                // Если сеть недоступна, пробуем кэш
-                return caches.match(event.request)
-                    .then(cachedResponse => {
-                        if (cachedResponse) {
-                            return cachedResponse;
-                        }
-                        // Для навигации возвращаем index.html
-                        if (event.request.mode === 'navigate') {
-                            return caches.match('/index.html');
-                        }
-                        return new Response('Офлайн режим', {
-                            status: 503,
-                            statusText: 'Service Unavailable'
-                        });
-                    });
-            })
-    );
-});
-
-// Push уведомления (опционально)
-self.addEventListener('push', event => {
-    const data = event.data ? event.data.json() : {};
-    const title = data.title || 'CamChat';
-    const options = {
-        body: data.body || 'Новое сообщение в чате',
-        icon: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect width="100" height="100" fill="%234c6ef5"/%3E%3Ccircle cx="50" cy="40" r="18" fill="white"/%3E%3C/svg%3E',
-        badge: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect width="100" height="100" fill="%234c6ef5"/%3E%3C/svg%3E',
-        vibrate: [200, 100, 200],
-        tag: 'camchat-notification',
-        renotify: true
-    };
-    event.waitUntil(self.registration.showNotification(title, options));
-});
-
-// Обработка клика по уведомлению
-self.addEventListener('notificationclick', event => {
-    event.notification.close();
-    event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true })
-            .then(windowClients => {
-                if (windowClients.length > 0) {
-                    windowClients[0].focus();
-                } else {
-                    clients.openWindow('/');
-                }
-            })
-    );
-});
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m]));
+    }
+    
+    function simpleHash(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash = ((hash << 5) - hash) + str.charCodeAt(i);
+            hash |= 0;
+        }
+        return hash.toString();
+    }
+    
+    // Firebase операции
+    async function addSystemMessage(text) {
+        await messagesRef.push({ text, author: '📡 Система', userId: 'system', timestamp: Date.now(), type: 'system' });
+    }
+    
+    async function addChatMessage(text) {
+        if (!currentUser) return;
+        await messagesRef.push({ text, author: currentUser.name, userId: currentUser.id, timestamp: Date.now(), type: 'user' });
+    }
+    
+    async function addAlertMessage(text, cameraName) {
+        if (!currentUser) return;
+        await messagesRef.push({ text, author: `🚨 Оповещение от ${currentUser.name}`, userId: currentUser.id, timestamp: Date.now(), type: 'alert', isAlert: true, alertAuthorId: currentUser.id, cameraName });
+        if (Notification.permission === 'granted') new Notification('⚠️ Новое оповещение!', { body: `${currentUser.name} сообщает о событии.` });
+        if (navigator.vibrate) navigator.vibrate(200);
+    }
+    
+    async function reportAlert(alertId, alertAuthorId, alertAuthorName) {
+        if (!currentUser) { openAuthModal('login'); return; }
+        if (alertAuthorId === currentUser.id) { alert('Нельзя жаловаться на своё оповещение'); return; }
+        const reportRef = reportsRef.child(alertId);
+        const snapshot = await reportRef.once('value');
+        let reportData = snapshot.val() || { voters: [], count: 0 };
+        if (reportData.voters.includes(currentUser.id)) { alert('Вы уже голосовали'); return; }
+        reportData.voters.push(currentUser.id);
+        reportData.count++;
+        await reportRef.set(reportData);
+        await addSystemMessage(`📢 Пользователь ${currentUser.name} пожаловался на оповещение от ${alertAuthorName}. (голосов: ${reportData.count}/3)`);
+        if (reportData.count >= 3) {
+            const banUntil = Date.now() + 24 * 60 * 60 * 1000;
+            await bannedUsersRef.child(alertAuthorId).set({ banUntil, reason: '3+ жалоб' });
+            await reportRef.remove();
+            await messagesRef.child(alertId).remove();
+            await addSystemMessage(`🗑️ Ложное оповещение от ${alertAuthorName} удалено, автор заблокирован на 24ч.`);
+            if (currentUser.id === alertAuthorId) eventAlertBtn.disabled = true;
+        } else alert(`Жалоба принята. Голосов: ${reportData.count}/3 для блокировки.`);
+    }
+    
+    async function isAlertBanned(userId) {
+        const snapshot = await bannedUsersRef.child(userId).once('value');
+        const data = snapshot.val();
+        if (data && data.banUntil > Date.now()) {
+            document.getElementById('spamWarning').innerText = '⚠️ Вы заблокированы за спам на 24 часа';
+            eventAlertBtn.disabled = true;
+            return true;
+        }
+        document.getElementById('spamWarning').innerText = '';
+        eventAlertBtn.disabled = false;
+        return false;
+    }
+    
+    // Авторизация
+    async function registerUser(name, password) {
+        const nameLower = name.toLowerCase();
+        const snapshot = await usersRef.orderByChild('nameLower').equalTo(nameLower).once('value');
+        if (snapshot.exists()) throw new Error('Пользователь уже существует');
+        const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+        await usersRef.child(userId).set({ name, nameLower, passwordHash: simpleHash(password), createdAt: Date.now() });
+        return { id: userId, name };
+    }
+    
+    async function loginUser(name, password) {
+        const snapshot = await usersRef.orderByChild('nameLower').equalTo(name.toLowerCase()).once('value');
+        if (!snapshot.exists()) throw new Error('Пользователь не найден');
+        let userData = null, userId = null;
+        snapshot.forEach(child => { userData = child.val(); userId = child.key; });
+        if (simpleHash(password) !== userData.passwordHash) throw new Error('Неверный пароль');
+        return { id: userId, name: userData.name };
+    }
+    
+    async function demoLogin() {
+        try {
+            const demoName = 'demo';
+            const demoPassword = 'demo123';
+            const nameLower = demoName.toLowerCase();
+            const snapshot = await usersRef.orderByChild('nameLower').equalTo(nameLower).once('value');
+            if (!snapshot.exists()) {
+                const userId = 'demo_' + Date.now();
+                await usersRef.child(userId).set({ name: demoName, nameLower, passwordHash: simpleHash(demoPassword), createdAt: Date.now() });
+                currentUser = { id: userId, name: demoName };
+            } else {
+                let userId = null;
+                snapshot.forEach(child => { userId = child.key; });
+                currentUser = { id: userId, name: demoName };
+            }
+            authModal.style.display = 'none';
+            applyAuthState();
+            await addSystemMessage(`👋 ${currentUser.name} присоединился к чату!`);
+        } catch (err) {
+            authModalError.innerText = err.message;
+        }
+    }
+    
+    function applyAuthState() {
+        if (currentUser) {
+            userStatusBadge.innerHTML = `👤 ${currentUser.name}`;
+            userStatusBadge.style.background = '#4c6ef5';
+            loginPromptBtn.innerHTML = `👤 ${currentUser.name}`;
+            chatInput.disabled = false;
+            sendBtn.disabled = false;
+            chatInput.placeholder = "Напишите сообщение...";
+            eventAlertBtn.disabled = false;
+            isAlertBanned(currentUser.id);
+        } else {
+            userStatusBadge.innerHTML = `👁️ гость`;
+            userStatusBadge.style.background = '#2d2d44';
+            loginPromptBtn.innerHTML = `🔑 Войти`;
+            chatInput.disabled = true;
+            sendBtn.disabled = true;
+            chatInput.placeholder = "Войдите, чтобы писать...";
+            eventAlertBtn.disabled = true;
+        }
+        renderMessages();
+    }
+    
+    function openAuthModal(mode = 'login') {
+        isAuthMode = mode;
+        if (mode === 'login') {
+            modalTitle.innerText = '🔐 Вход';
+            modalDesc.innerText = 'Введите имя и пароль';
+            authSubmitBtn.innerText = 'Войти';
+            switchModeDiv.innerHTML = 'Нет аккаунта? <span id="switchToReg">Зарегистрироваться</span>';
+            document.getElementById('switchToReg').onclick = () => openAuthModal('register');
+        } else {
+            modalTitle.innerText = '📝 Регистрация';
+            modalDesc.innerText = 'Создайте аккаунт (имя и пароль)';
+            authSubmitBtn.innerText = 'Зарегистрироваться';
+            switchModeDiv.innerHTML = 'Уже есть аккаунт? <span id="switchToLogin">Войти</span>';
+            document.getElementById('switchToLogin').onclick = () => openAuthModal('login');
+        }
+        authName.value = '';
+        authPassword.value = '';
+        authModalError.innerText = '';
+        authModal.style.display = 'flex';
+    }
+    
+    async function handleAuthSubmit() {
+        const name = authName.value.trim();
+        const password = authPassword.value.trim();
+        if (!name || !password) { authModalError.innerText = 'Заполните все поля'; return; }
+        if (name.length < 3) { authModalError.innerText = 'Имя должно быть не менее 3 символов'; return; }
+        try {
+            if (isAuthMode === 'register') {
+                currentUser = await registerUser(name, password);
+                await addSystemMessage(`👋 ${currentUser.name} присоединился к чату!`);
+            } else {
+                currentUser = await loginUser(name, password);
+                await addSystemMessage(`👋 ${currentUser.name} вернулся в чат!`);
+            }
+            authModal.style.display = 'none';
+            applyAuthState();
+        } catch (err) {
+            authModalError.innerText = err.message;
+        }
+    }
+    
+    function logout() {
+        if (currentUser) addSystemMessage(`👋 ${currentUser.name} покинул чат`);
+        currentUser = null;
+        applyAuthState();
+    }
+    
+    // Видео плеер
+    function loadCameraStream(url) {
+        if (!url || (currentStreamUrl === url && hls)) return;
+        currentStreamUrl = url;
+        if (hls) { hls.destroy(); hls = null; }
+        videoEl.removeAttribute('src');
+        videoEl.load();
+        playerStatusSpan.innerText = '⏳ Подключение...';
+        if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+            videoEl.src = url;
+            videoEl.play().catch(() => playerStatusSpan.innerText = '▶️ Нажмите для запуска');
+        } else if (Hls && Hls.isSupported()) {
+            hls = new Hls({ debug: false, enableWorker: true });
+            hls.loadSource(url);
+            hls.attachMedia(videoEl);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                playerStatusSpan.innerText = '🟢 Онлайн';
+                videoEl.play().catch(() => {});
+            });
+            hls.on(Hls.Events.ERROR, () => { playerStatusSpan.innerText = '⚠️ Ошибка потока'; });
+        } else {
+            playerStatusSpan.innerText = '❌ HLS не поддерживается';
+        }
+        videoEl.addEventListener('playing', () => { if(!playerStatusSpan.innerText.includes('Ошибка')) playerStatusSpan.innerText = '🎥 Прямой эфир'; });
+    }
+    
+    function initCameras() {
+        cameraSelect.innerHTML = '';
+        document.getElementById('camCount').innerText = `${cameras.length} камер`;
+        cameras.forEach(cam => {
+            const opt = document.createElement('option');
+            opt.value = cam.url;
+            opt.textContent = `${cam.id}. ${cam.name}`;
+            cameraSelect.appendChild(opt);
+        });
+        if (cameras.length) loadCameraStream(cameras[0].url);
+        cameraSelect.addEventListener('change', () => {
+            loadCameraStream(cameraSelect.value);
+        });
+    }
+    
+    function switchToCameraByName(cameraName) {
+        const camera = cameras.find(c => c.name === cameraName);
+        if (camera) {
+            cameraSelect.value = camera.url;
+            loadCameraStream(camera.url);
+        }
+    }
+    
+    // Чат с Firebase
+    function subscribeToMessages() {
+        if (messageListener) {
+            messagesRef.off('child_added', messageListener);
+        }
+        messagesContainer.innerHTML = '';
+        
+        messageListener = messagesRef.orderByChild('timestamp').limitToLast(100).on('child_added', (snapshot) => {
+            const msg = snapshot.val();
+            if (!msg) return;
+            
+            const messageDiv = document.createElement('div');
+            let cls = 'message';
+            if (currentUser && msg.userId === currentUser.id && msg.type === 'user') cls += ' message-self';
+            if (msg.isAlert) cls += ' message-alert';
+            if (msg.type === 'system') cls += ' message-system';
+            messageDiv.className = cls;
+            
+            let authorDisplay = escapeHtml(msg.author);
+            if (msg.isAlert) authorDisplay = '🚨 ' + authorDisplay;
+            
+            let actionsHtml = '';
+            if (msg.isAlert && msg.type === 'alert') {
+                actionsHtml = `
+                    <div class="alert-actions">
+                        <button class="alert-btn switch-cam-btn" data-camera="${escapeHtml(msg.cameraName || '')}">📺 Перейти на камеру</button>
+                        <button class="alert-btn report-btn" data-id="${snapshot.key}" data-author="${msg.alertAuthorId || msg.userId}" data-name="${escapeHtml(msg.author.replace('🚨 Оповещение от ', ''))}">🚫 Пожаловаться</button>
+                    </div>
+                `;
+            }
+            
+            messageDiv.innerHTML = `
+                <div class="message-author">${authorDisplay}</div>
+                <div class="message-text">${escapeHtml(msg.text)}</div>
+                <div class="message-time">${getFormattedTime(msg.timestamp)}</div>
+                ${actionsHtml}
+            `;
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            // Обработчики кнопок
+            const switchBtn = messageDiv.querySelector('.switch-cam-btn');
+            if (switchBtn) {
+                switchBtn.onclick = () => switchToCameraByName(switchBtn.getAttribute('data-camera'));
+            }
+            const reportBtn = messageDiv.querySelector('.report-btn');
+            if (reportBtn) {
+                reportBtn.onclick = () => reportAlert(
+                    reportBtn.getAttribute('data-id'),
+                    reportBtn.getAttribute('data-author'),
+                    reportBtn.getAttribute('data-name')
+                );
+            }
+        });
+    }
+    
+    function toggleFullscreen() {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            const req = playerSection.requestFullscreen || playerSection.webkitRequestFullscreen;
+            if (req) req.call(playerSection);
+        } else {
+            const exit = document.exitFullscreen || document.webkitExitFullscreen;
+            if (exit) exit.call(document);
+        }
+    }
+    
+    async function sendMessage() {
+        const text = chatInput.value.trim();
+        if (!text || !currentUser) return;
+        await addChatMessage(text);
+        chatInput.value = '';
+    }
+    
+    async function sendAlert() {
+        if (!currentUser) {
+            openAuthModal('login');
+            return;
+        }
+        if (await isAlertBanned(currentUser.id)) return;
+        const selectedText = cameraSelect.options[cameraSelect.selectedIndex]?.textContent || 'камере';
+        await addAlertMessage(`🔴 ВНИМАНИЕ! Пользователь ${currentUser.name} сообщает о событии на ${selectedText}. Проверьте видеопоток!`, selectedText);
+    }
+    
+    // PWA Установка
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installBtn.style.display = 'block';
+    });
+    
+    installBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                installBtn.style.display = 'none';
+            }
+            deferredPrompt = null;
+        }
+    });
+    
+    // Регистрация Service Worker
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('SW registered:', reg))
+                .catch(err => console.log('SW registration failed:', err));
+        });
+    }
+    
+    // Запрос уведомлений
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+    
+    // Инициализация
+    function init() {
+        initCameras();
+        subscribeToMessages();
+        applyAuthState();
+        
+        sendBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && currentUser) sendMessage();
+            else if (e.key === 'Enter' && !currentUser) openAuthModal('login');
+        });
+        eventAlertBtn.addEventListener('click', sendAlert);
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+        loginPromptBtn.addEventListener('click', () => openAuthModal('login'));
+        authSubmitBtn.addEventListener('click', handleAuthSubmit);
+        demoLoginBtn.addEventListener('click', demoLogin);
+        
+        // Кнопка выхода
+        const logoutBtn = document.createElement('button');
+        logoutBtn.innerText = '🚪 Выйти';
+        logoutBtn.style.cssText = 'background:#333; border:none; padding:4px 12px; border-radius:20px; margin-left:8px; font-size:11px; cursor:pointer; color:white;';
+        logoutBtn.onclick = logout;
+        document.querySelector('.chat-header').appendChild(logoutBtn);
+    }
+    
+    init();
+</script>
+</body>
+</html>
